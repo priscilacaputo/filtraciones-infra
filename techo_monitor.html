@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Techos — Aeroparque</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; }
+
+  header {
+    background: #16213e; padding: 7px 16px; display: flex; align-items: center;
+    gap: 12px; border-bottom: 2px solid #0f3460; height: 44px; flex-shrink: 0;
+  }
+  header h1 { font-size: 1rem; font-weight: 700; color: #e94560; white-space: nowrap; }
+  header span { font-size: 0.75rem; color: #8892b0; }
+
+  .toolbar {
+    background: #16213e; padding: 5px 12px; display: flex; gap: 6px;
+    align-items: center; border-bottom: 1px solid #0f3460; height: 40px;
+    flex-shrink: 0; overflow-x: auto; overflow-y: hidden;
+  }
+  .toolbar::-webkit-scrollbar { height: 3px; }
+  .toolbar label { font-size: 0.73rem; color: #8892b0; white-space: nowrap; }
+  .toolbar input[type=number] {
+    width: 46px; padding: 3px 5px; border-radius: 4px;
+    border: 1px solid #0f3460; background: #0f3460; color: #e0e0e0; font-size: 0.78rem;
+  }
+  .sep { width: 1px; height: 22px; background: #0f3460; margin: 0 2px; flex-shrink: 0; }
+
+  button {
+    padding: 4px 10px; border-radius: 5px; border: none; cursor: pointer;
+    font-size: 0.75rem; font-weight: 600; transition: opacity .15s; white-space: nowrap;
+  }
+  button:hover { opacity: .82; }
+  button:disabled { opacity: .4; cursor: default; }
+  .btn-primary   { background: #e94560; color: #fff; }
+  .btn-secondary { background: #0f3460; color: #ccd6f6; }
+  .btn-success   { background: #27ae60; color: #fff; }
+  .btn-warn      { background: #f39c12; color: #1a1a2e; }
+  .btn-zone      { background: #8e44ad; color: #fff; }
+  .btn-zone.active { background: #a855f7; box-shadow: 0 0 0 2px #a855f755; }
+  .btn-ao        { background: #0f3460; color: #ccd6f6; }
+  .btn-ao.on     { background: #1a6e4e; color: #2ecc71; }
+
+  .zone-hint {
+    display: none; background: #8e44ad22; border: 1px solid #8e44ad55;
+    border-radius: 5px; padding: 3px 10px; font-size: 0.72rem; color: #c084fc; white-space: nowrap;
+  }
+  .zone-hint.on { display: block; }
+
+  .lock-badge {
+    display: none; align-items: center; gap: 5px; font-size: 0.72rem;
+    border-radius: 5px; padding: 3px 8px; white-space: nowrap;
+  }
+  .lock-badge.purple { background: #8e44ad22; border: 1px solid #8e44ad55; color: #a855f7; }
+  .lock-badge.green  { background: #27ae6022; border: 1px solid #27ae6055; color: #2ecc71; }
+
+  .app { display: flex; height: calc(100vh - 84px); }
+
+  /* MAP */
+  #map { flex: 1; position: relative; }
+  .leaflet-container { background: #0d1117; }
+
+  #overlay-canvas {
+    position: absolute; top: 0; left: 0; z-index: 450;
+    pointer-events: none;
+  }
+
+  /* Zoom / rotate HUD */
+  #map-hud {
+    position: absolute; bottom: 28px; left: 10px; z-index: 500;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .hud-group {
+    display: flex; gap: 3px; align-items: center;
+    background: rgba(22,33,62,0.92); border: 1px solid #0f3460;
+    border-radius: 7px; padding: 4px 7px; backdrop-filter: blur(4px);
+  }
+  .hud-group button { width: 26px; height: 26px; padding: 0; font-size: 0.9rem; background: #0f3460; color: #ccd6f6; border-radius: 4px; }
+  .hud-group span   { font-size: 0.72rem; color: #8892b0; min-width: 38px; text-align: center; }
+  .hud-group .wide  { width: auto; padding: 0 8px; font-size: 0.7rem; }
+
+  /* Compass */
+  #compass {
+    position: absolute; top: 12px; right: 12px; z-index: 500;
+    width: 52px; height: 52px; cursor: pointer;
+  }
+  #compass canvas { display: block; }
+  #compass:hover { opacity: .85; }
+
+  /* SIDEBAR */
+  .sidebar-wrap { display: flex; flex-direction: row; flex-shrink: 0; }
+  .sidebar-toggle {
+    width: 20px; background: #16213e; border-left: 1px solid #0f3460;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    color: #8892b0; font-size: 0.7rem; user-select: none; writing-mode: vertical-lr;
+    transition: background .15s;
+  }
+  .sidebar-toggle:hover { background: #1a2a52; color: #e94560; }
+  .sidebar { width: 330px; background: #16213e; border-left: 1px solid #0f3460; display: flex; flex-direction: column; overflow: hidden; transition: width .2s ease; }
+  .sidebar.collapsed { width: 0; }
+
+  .sidebar-tabs { display: flex; border-bottom: 1px solid #0f3460; flex-shrink: 0; }
+  .tab { flex: 1; padding: 8px; text-align: center; cursor: pointer; font-size: 0.75rem; color: #8892b0; border-bottom: 2px solid transparent; transition: all .2s; white-space: nowrap; }
+  .tab.active { color: #e94560; border-bottom-color: #e94560; }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 12px; }
+  .tab-content.active { display: block; }
+
+  .legend h3 { font-size: 0.72rem; color: #8892b0; margin-bottom: 7px; text-transform: uppercase; letter-spacing: 1px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; font-size: 0.75rem; }
+  .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+  .stat-card { background: #0f3460; border-radius: 7px; padding: 9px; text-align: center; }
+  .stat-card .value { font-size: 1.4rem; font-weight: 700; color: #e94560; }
+  .stat-card .label { font-size: 0.65rem; color: #8892b0; margin-top: 2px; }
+
+  .section-info { background: #0f3460; border-radius: 7px; padding: 10px; margin-bottom: 10px; display: none; }
+  .section-info h3 { font-size: 0.85rem; color: #ccd6f6; margin-bottom: 3px; }
+  .section-info .count { font-size: 0.72rem; color: #8892b0; }
+
+  .incident-list { display: flex; flex-direction: column; gap: 6px; }
+  .incident-card { background: #0f3460; border-radius: 6px; padding: 9px; border-left: 4px solid #555; }
+  .incident-card.alta  { border-left-color: #e74c3c; }
+  .incident-card.media { border-left-color: #f39c12; }
+  .incident-card.baja  { border-left-color: #27ae60; }
+  .incident-card .inc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 5px; }
+  .incident-card .inc-title  { font-size: 0.8rem; font-weight: 600; color: #ccd6f6; }
+  .incident-card .inc-meta   { font-size: 0.68rem; color: #8892b0; margin-top: 2px; }
+  .incident-card .inc-desc   { font-size: 0.75rem; color: #a8b2d8; margin-top: 4px; }
+  .inc-actions { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; flex-shrink: 0; }
+
+  .badge { font-size: 0.62rem; padding: 2px 5px; border-radius: 9px; font-weight: 600; white-space: nowrap; }
+  .badge.alta          { background: #e74c3c22; color: #e74c3c; border: 1px solid #e74c3c55; }
+  .badge.media         { background: #f39c1222; color: #f39c12; border: 1px solid #f39c1255; }
+  .badge.baja          { background: #27ae6022; color: #27ae60; border: 1px solid #27ae6055; }
+  .badge.abierta       { background: #e9456099; color: #fff; }
+  .badge.en_reparacion { background: #f39c1299; color: #fff; }
+  .badge.cerrada       { background: #2c3e5099; color: #ccc; }
+
+  .icon-btn { background: none; border: none; cursor: pointer; font-size: 0.78rem; padding: 2px 3px; border-radius: 3px; line-height: 1; transition: background .12s; }
+  .icon-btn.edit { color: #8892b0; }
+  .icon-btn.edit:hover { color: #ccd6f6; background: #ffffff15; }
+  .icon-btn.del  { color: #e74c3c44; }
+  .icon-btn.del:hover  { color: #e74c3c; background: #e74c3c15; }
+
+  .all-list-item { background: #0f3460; border-radius: 5px; padding: 7px 10px; margin-bottom: 4px; font-size: 0.75rem; border-left: 3px solid #555; cursor: pointer; }
+  .all-list-item:hover { background: #1a3a6e; }
+  .all-list-item.alta  { border-left-color: #e74c3c; }
+  .all-list-item.media { border-left-color: #f39c12; }
+  .all-list-item.baja  { border-left-color: #27ae60; }
+  .all-list-item .row  { display: flex; justify-content: space-between; gap: 4px; }
+  .all-list-item .section-tag { color: #e94560; font-weight: 600; }
+  .all-list-item .desc { color: #a8b2d8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.78); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #16213e; border: 1px solid #0f3460; border-radius: 12px; padding: 20px; width: 430px; max-width: 95vw; }
+  .modal h2 { font-size: 0.9rem; color: #e94560; margin-bottom: 13px; }
+  .form-group { margin-bottom: 10px; }
+  .form-group label { display: block; font-size: 0.72rem; color: #8892b0; margin-bottom: 3px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 6px 8px; border-radius: 5px;
+    border: 1px solid #0f3460; background: #0d1117; color: #e0e0e0; font-size: 0.8rem; font-family: inherit;
+  }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-row { display: flex; gap: 9px; }
+  .form-row .form-group { flex: 1; }
+  .modal-actions { display: flex; gap: 7px; justify-content: flex-end; margin-top: 13px; }
+
+  .filter-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 9px; }
+  .filter-btn { padding: 2px 8px; border-radius: 9px; font-size: 0.7rem; border: 1px solid #0f3460; background: transparent; color: #8892b0; cursor: pointer; }
+  .filter-btn.active { background: #e94560; color: #fff; border-color: #e94560; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: #0f3460; }
+  ::-webkit-scrollbar-thumb { background: #e9456055; border-radius: 3px; }
+  .empty { text-align: center; color: #8892b0; font-size: 0.78rem; padding: 18px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+    <path d="M4 14 L14 4 L24 14 L24 24 L4 24 Z" fill="#e94560" opacity=".85"/>
+    <rect x="10" y="16" width="8" height="8" fill="#16213e"/>
+  </svg>
+  <h1>Monitor de Techos — Aeroparque Jorge Newbery</h1>
+  <span>Sistema de seguimiento de pérdidas e incidencias</span>
+</header>
+
+<div class="toolbar">
+  <!-- Zona -->
+  <button class="btn-zone" id="zone-btn" onclick="toggleZoneMode()">✏ Definir zona del techo</button>
+  <span class="zone-hint" id="zone-hint">Clic → punto · Doble clic → cerrar zona · ESC → cancelar</span>
+  <span class="lock-badge purple" id="zone-locked">
+    🔒 Zona fija
+    <button class="btn-secondary" style="padding:2px 6px;font-size:0.68rem" onclick="unlockZone()">✎ Modificar</button>
+  </span>
+
+  <div class="sep"></div>
+
+  <!-- Grilla -->
+  <span id="grid-edit-area" style="display:flex;align-items:center;gap:5px">
+    <label>Cols:</label>
+    <input type="number" id="cols" value="18" min="1" max="60" onchange="redrawOverlay()">
+    <label>Filas:</label>
+    <input type="number" id="rows" value="20" min="1" max="60" onchange="redrawOverlay()">
+    <button class="btn-success" onclick="lockGrid()">🔒 Fijar grilla</button>
+  </span>
+  <span class="lock-badge green" id="grid-locked-area">
+    🔒 Grilla: <b id="grid-locked-label"></b>
+    <button class="btn-secondary" style="padding:2px 6px;font-size:0.68rem" onclick="unlockGrid()">✎ Modificar</button>
+  </span>
+
+  <div class="sep"></div>
+
+  <button class="btn-secondary" onclick="toggleHeatmap()" id="heatmap-btn">🌡 Calor: ON</button>
+  <button class="btn-ao" onclick="toggleActiveOnly()" id="active-btn">👁 Solo activas: OFF</button>
+  <button class="btn-warn" onclick="exportCSV()">⬇ CSV</button>
+</div>
+
+<div class="app">
+  <!-- MAP -->
+  <div id="map">
+    <canvas id="overlay-canvas"></canvas>
+
+    <!-- Compass rose -->
+    <div id="compass" onclick="resetNorth()" title="Clic para orientar al norte">
+      <canvas id="compass-canvas" width="52" height="52"></canvas>
+    </div>
+
+    <!-- HUD -->
+    <div id="map-hud">
+      <!-- Zoom -->
+      <div class="hud-group">
+        <button onclick="map.zoomIn()" title="Acercar">+</button>
+        <span id="zoom-label">z18</span>
+        <button onclick="map.zoomOut()" title="Alejar">−</button>
+        <button class="wide" onclick="goToAEP()" title="Centrar en terminal">✈ AEP</button>
+      </div>
+      <!-- Rotación -->
+      <div class="hud-group">
+        <button onclick="rotateCCW()" title="Girar izquierda (Q)">↺</button>
+        <span id="bearing-label" style="min-width:32px">0°</span>
+        <button onclick="rotateCW()" title="Girar derecha (E)">↻</button>
+        <button class="wide" onclick="resetNorth()" title="Orientar al norte">⬆ N</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar-wrap">
+    <div class="sidebar-toggle" id="sb-toggle" onclick="toggleSidebar()" title="Colapsar panel">▶</div>
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-tabs">
+        <div class="tab active" onclick="showTab('overview')">Resumen</div>
+        <div class="tab" onclick="showTab('section')">Sección</div>
+        <div class="tab" onclick="showTab('all')">Todas</div>
+      </div>
+
+      <div class="tab-content active" id="tab-overview">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="value" id="stat-total">0</div><div class="label">Total</div></div>
+          <div class="stat-card"><div class="value" id="stat-open" style="color:#e74c3c">0</div><div class="label">Abiertas</div></div>
+          <div class="stat-card"><div class="value" id="stat-repair" style="color:#f39c12">0</div><div class="label">Reparación</div></div>
+          <div class="stat-card"><div class="value" id="stat-closed" style="color:#27ae60">0</div><div class="label">Cerradas</div></div>
+        </div>
+        <div class="legend" style="margin-bottom:12px">
+          <h3>Mapa de calor</h3>
+          <div class="legend-item"><div class="legend-dot" style="background:#27ae6033;border:1px solid #27ae6055"></div> Sin incidencias</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f1c40f88"></div> 1–2 incidencias</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f39c12aa"></div> 3–5 incidencias</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#e74c3ccc"></div> 6+ o severidad alta</div>
+        </div>
+        <div class="legend">
+          <h3>Instrucciones</h3>
+          <div style="font-size:0.73rem;color:#8892b0;line-height:1.8">
+            1. Hacé clic en <b style="color:#a855f7">✏ Definir zona</b> y trazá el contorno del techo<br>
+            2. Fijá la grilla con <b style="color:#2ecc71">🔒 Fijar grilla</b><br>
+            3. Clic en una celda → registrar incidencia<br>
+            🖱 Rueda → zoom · Arrastrar → mover mapa<br>
+            ✈ AEP → volver a la terminal
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-section">
+        <div class="section-info" id="section-info">
+          <h3 id="section-title">—</h3>
+          <div class="count" id="section-count"></div>
+        </div>
+        <div id="section-incidents" class="incident-list">
+          <div class="empty">Seleccioná una sección en el plano.</div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-all">
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setFilter('all',this)">Todas</button>
+          <button class="filter-btn" onclick="setFilter('abierta',this)">Abiertas</button>
+          <button class="filter-btn" onclick="setFilter('en_reparacion',this)">Reparación</button>
+          <button class="filter-btn" onclick="setFilter('cerrada',this)">Cerradas</button>
+          <button class="filter-btn" onclick="setFilter('alta',this)">Alta</button>
+          <button class="filter-btn" onclick="setFilter('media',this)">Media</button>
+        </div>
+        <div id="all-incidents"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-title">Nueva incidencia</h2>
+    <div class="form-group">
+      <label>Descripción breve *</label>
+      <input type="text" id="f-desc" placeholder="Ej: Goteo en viga central">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fecha y hora *</label>
+        <input type="datetime-local" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>Severidad</label>
+        <select id="f-severity">
+          <option value="baja">Baja</option>
+          <option value="media" selected>Media</option>
+          <option value="alta">Alta</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Estado</label>
+      <select id="f-status">
+        <option value="abierta">Abierta</option>
+        <option value="en_reparacion">En reparación</option>
+        <option value="cerrada">Cerrada</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Observaciones</label>
+      <textarea id="f-notes" placeholder="Detalles, materiales afectados, etc."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveIncident()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Storage keys ──────────────────────────────────────────────────────────────
+const STORAGE_KEY  = 'techo_aep_incidents_v2';
+const STORAGE_ZONE = 'techo_aep_zone_v3';   // lat/lng format
+const STORAGE_GRID = 'techo_aep_grid_v2';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let incidents       = JSON.parse(localStorage.getItem(STORAGE_KEY)  || '[]');
+let terminalPolygon = JSON.parse(localStorage.getItem(STORAGE_ZONE) || '[]'); // [{lat,lng}]
+let selectedCell    = null;
+let showHeatmap     = true;
+let showActiveOnly  = false;
+let currentFilter   = 'all';
+let zoneMode        = false;
+let draftPolygon    = [];   // [{lat,lng}] in progress
+let mouseLatLng     = null;
+let flashSteps      = 0;
+
+// ── Leaflet map — centrado en Aeroparque (KML: -58.4156511, -34.5590184) ──────
+const AEP = [-34.5590184, -58.4156511];
+
+const map = L.map('map', {
+  center: AEP,
+  zoom: 18,
+  rotate: true,
+  bearing: 0,
+  touchRotate: true,   // dos dedos para rotar en móvil/tablet
+  zoomControl: false,
+  doubleClickZoom: true
+});
+
+// ESRI World Imagery (satélite, sin API key)
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  { attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 21, maxNativeZoom: 19 }
+).addTo(map);
+
+// Labels overlay (nombres de calles/referencias)
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  { maxZoom: 21, maxNativeZoom: 19, opacity: 0.6 }
+).addTo(map);
+
+// ── Overlay canvas ────────────────────────────────────────────────────────────
+const oc  = document.getElementById('overlay-canvas');
+const ctx = oc.getContext('2d');
+
+function resizeCanvas() {
+  const mapEl = document.getElementById('map');
+  oc.width  = mapEl.offsetWidth;
+  oc.height = mapEl.offsetHeight;
+  oc.style.width  = oc.width  + 'px';
+  oc.style.height = oc.height + 'px';
+}
+
+map.on('move zoom viewreset resize', () => { resizeCanvas(); redrawOverlay(); });
+resizeCanvas();
+
+function goToAEP() { map.setView(AEP, 18, { animate: true }); }
+
+map.on('zoom', () => {
+  document.getElementById('zoom-label').textContent = 'z' + map.getZoom();
+});
+
+map.on('rotate', () => {
+  updateBearingUI();
+  redrawOverlay();
+});
+
+// ── Rotación ──────────────────────────────────────────────────────────────────
+function getBearing() { return map.getBearing ? map.getBearing() : 0; }
+
+function rotateCW()  { if (map.setBearing) { map.setBearing(getBearing() + 15); } }
+function rotateCCW() { if (map.setBearing) { map.setBearing(getBearing() - 15); } }
+function resetNorth() { if (map.setBearing) { map.setBearing(0, { animate: true }); } }
+
+function updateBearingUI() {
+  const b = Math.round(getBearing());
+  document.getElementById('bearing-label').textContent = ((b % 360) + 360) % 360 + '°';
+  drawCompass();
+}
+
+// ── Compass rose ──────────────────────────────────────────────────────────────
+function drawCompass() {
+  const cc  = document.getElementById('compass-canvas');
+  const cctx = cc.getContext('2d');
+  const w = cc.width, h = cc.height, cx = w / 2, cy = h / 2, r = w / 2 - 2;
+  const bearing = getBearing() * Math.PI / 180;
+
+  cctx.clearRect(0, 0, w, h);
+
+  // Fondo circular
+  cctx.beginPath();
+  cctx.arc(cx, cy, r, 0, Math.PI * 2);
+  cctx.fillStyle = 'rgba(22,33,62,0.88)';
+  cctx.fill();
+  cctx.strokeStyle = '#0f3460';
+  cctx.lineWidth = 1.5;
+  cctx.stroke();
+
+  // Aguja norte (roja, apunta al norte real)
+  cctx.save();
+  cctx.translate(cx, cy);
+  cctx.rotate(-bearing);
+  // Flecha norte roja
+  cctx.beginPath();
+  cctx.moveTo(0, -r + 6);
+  cctx.lineTo(5, 4);
+  cctx.lineTo(0, 0);
+  cctx.lineTo(-5, 4);
+  cctx.closePath();
+  cctx.fillStyle = '#e94560';
+  cctx.fill();
+  // Flecha sur blanca
+  cctx.beginPath();
+  cctx.moveTo(0, r - 6);
+  cctx.lineTo(5, -4);
+  cctx.lineTo(0, 0);
+  cctx.lineTo(-5, -4);
+  cctx.closePath();
+  cctx.fillStyle = '#ccd6f6';
+  cctx.fill();
+  // Letra N
+  cctx.fillStyle = '#fff';
+  cctx.font = 'bold 9px Segoe UI';
+  cctx.textAlign = 'center';
+  cctx.textBaseline = 'middle';
+  cctx.fillText('N', 0, -r + 16);
+  cctx.restore();
+
+  // Punto central
+  cctx.beginPath();
+  cctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  cctx.fillStyle = '#fff';
+  cctx.fill();
+}
+
+// ── Zone & polygon helpers ────────────────────────────────────────────────────
+function latlng2px(latlng) { return map.latLngToContainerPoint(L.latLng(latlng.lat, latlng.lng)); }
+function px2latlng(x, y)   { return map.containerPointToLatLng(L.point(x, y)); }
+
+function getZoneBbox() {
+  if (terminalPolygon.length < 3) return null;
+  const lats = terminalPolygon.map(p => p.lat);
+  const lngs = terminalPolygon.map(p => p.lng);
+  return { north: Math.max(...lats), south: Math.min(...lats), east: Math.max(...lngs), west: Math.min(...lngs) };
+}
+
+function pointInPoly(lat, lng, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].lng, yi = poly[i].lat, xj = poly[j].lng, yj = poly[j].lat;
+    if (((yi > lat) !== (yj > lat)) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function getCols() { return parseInt(document.getElementById('cols').value) || 18; }
+function getRows() { return parseInt(document.getElementById('rows').value) || 20; }
+function cellKey(r, c) { return String.fromCharCode(65 + c) + (r + 1); }
+function cellIncidents(key) { return incidents.filter(i => i.cell === key); }
+
+function getCellCenter(r, c, bbox) {
+  const rows = getRows(), cols = getCols();
+  return {
+    lat: bbox.north - (r + 0.5) * (bbox.north - bbox.south) / rows,
+    lng: bbox.west  + (c + 0.5) * (bbox.east  - bbox.west)  / cols
+  };
+}
+
+function getCellPx(r, c, bbox) {
+  // Returns {nw, ne, se, sw} in screen pixels
+  const rows = getRows(), cols = getCols();
+  const latStep = (bbox.north - bbox.south) / rows;
+  const lngStep = (bbox.east  - bbox.west)  / cols;
+  const nw = latlng2px({ lat: bbox.north - r       * latStep, lng: bbox.west + c       * lngStep });
+  const ne = latlng2px({ lat: bbox.north - r       * latStep, lng: bbox.west + (c + 1) * lngStep });
+  const se = latlng2px({ lat: bbox.north - (r + 1) * latStep, lng: bbox.west + (c + 1) * lngStep });
+  const sw = latlng2px({ lat: bbox.north - (r + 1) * latStep, lng: bbox.west + c       * lngStep });
+  return { nw, ne, se, sw };
+}
+
+function cellInZone(r, c, bbox) {
+  if (terminalPolygon.length < 3) return true;
+  const center = getCellCenter(r, c, bbox);
+  return pointInPoly(center.lat, center.lng, terminalPolygon);
+}
+
+function heatColor(n, sev) {
+  if (n === 0) return null;
+  if (n >= 6 || sev === 'alta')  return 'rgba(231,76,60,0.72)';
+  if (n >= 3 || sev === 'media') return 'rgba(243,156,18,0.65)';
+  return 'rgba(241,196,15,0.50)';
+}
+
+function hasActive(key) {
+  return incidents.some(i => i.cell === key && (i.status === 'abierta' || i.status === 'en_reparacion'));
+}
+
+// ── Redraw ────────────────────────────────────────────────────────────────────
+function redrawOverlay() {
+  ctx.clearRect(0, 0, oc.width, oc.height);
+  drawGrid();
+  drawZone();
+}
+
+function drawGrid() {
+  if (terminalPolygon.length < 3) return;
+  const bbox = getZoneBbox();
+  const rows = getRows(), cols = getCols();
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!cellInZone(r, c, bbox)) continue;
+      const key  = cellKey(r, c);
+      const incs = cellIncidents(key);
+      const px   = getCellPx(r, c, bbox);
+      const active = hasActive(key);
+
+      ctx.beginPath();
+      ctx.moveTo(px.nw.x, px.nw.y);
+      ctx.lineTo(px.ne.x, px.ne.y);
+      ctx.lineTo(px.se.x, px.se.y);
+      ctx.lineTo(px.sw.x, px.sw.y);
+      ctx.closePath();
+
+      // Heat fill
+      if (showActiveOnly && !active) {
+        ctx.fillStyle = 'rgba(0,0,0,0.50)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        continue;
+      }
+
+      if (showHeatmap && incs.length > 0) {
+        const sev = incs.some(i => i.severity === 'alta') ? 'alta'
+                  : incs.some(i => i.severity === 'media') ? 'media' : 'baja';
+        ctx.fillStyle = heatColor(incs.length, sev);
+        ctx.fill();
+      }
+
+      // Border
+      if (selectedCell === key) {
+        ctx.strokeStyle = '#e94560';
+        ctx.lineWidth = 2;
+      } else {
+        ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+        ctx.lineWidth = 0.8;
+      }
+      ctx.stroke();
+
+      // Label
+      const cx = (px.nw.x + px.se.x) / 2;
+      const cy = (px.nw.y + px.se.y) / 2;
+      const cellH = Math.abs(px.sw.y - px.nw.y);
+      const cellW = Math.abs(px.ne.x - px.nw.x);
+      const fs = Math.max(7, Math.min(cellW, cellH) * 0.20);
+      ctx.fillStyle = 'rgba(255,255,255,0.90)';
+      ctx.font = `bold ${fs}px Segoe UI`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(key, cx, cy);
+
+      // Badge de conteo
+      if (incs.length > 0) {
+        const bs = Math.max(11, Math.min(cellW, cellH) * 0.25);
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.fillRect(px.ne.x - bs - 1, px.nw.y + 1, bs, bs);
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${bs * 0.62}px Segoe UI`;
+        ctx.fillText(incs.length, px.ne.x - bs / 2 - 1, px.nw.y + bs / 2 + 1);
+      }
+
+      // Punto activo
+      if (active) {
+        const dr = Math.max(3, Math.min(cellW, cellH) * 0.07);
+        ctx.beginPath();
+        ctx.arc(px.sw.x + dr + 2, px.sw.y - dr - 2, dr, 0, Math.PI * 2);
+        ctx.fillStyle = incs.some(i => i.status === 'abierta') ? '#e74c3c' : '#f39c12';
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function drawZone() {
+  // Polígono guardado
+  const poly = terminalPolygon.length >= 3 ? terminalPolygon : null;
+  if (poly) {
+    const pts = poly.map(p => latlng2px(p));
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fillStyle = '#a855f7'; ctx.fill(); });
+  }
+
+  // Borrador en progreso
+  if (zoneMode && draftPolygon.length > 0) {
+    const pts = draftPolygon.map(p => latlng2px(p));
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    if (mouseLatLng) ctx.lineTo(latlng2px(mouseLatLng).x, latlng2px(mouseLatLng).y);
+    ctx.strokeStyle = '#f39c12';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    pts.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, i === 0 ? 6 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = i === 0 ? '#e94560' : '#f39c12';
+      ctx.fill();
+    });
+  }
+}
+
+// ── Map events ────────────────────────────────────────────────────────────────
+map.on('click', e => {
+  const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+
+  if (zoneMode) {
+    // Cerrar al hacer clic cerca del primer punto
+    if (draftPolygon.length >= 3) {
+      const fp  = latlng2px(draftPolygon[0]);
+      const cp  = map.latLngToContainerPoint(e.latlng);
+      if (Math.hypot(cp.x - fp.x, cp.y - fp.y) < 15) { finalizeZone(); return; }
+    }
+    draftPolygon.push(pt);
+    redrawOverlay();
+    return;
+  }
+
+  // Click en celda
+  if (terminalPolygon.length < 3) return;
+  const bbox = getZoneBbox();
+  const rows = getRows(), cols = getCols();
+  const latStep = (bbox.north - bbox.south) / rows;
+  const lngStep = (bbox.east  - bbox.west)  / cols;
+  const r = Math.floor((bbox.north - pt.lat) / latStep);
+  const c = Math.floor((pt.lng - bbox.west)  / lngStep);
+  if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+  if (!cellInZone(r, c, bbox)) return;
+  const key = cellKey(r, c);
+  selectedCell = key;
+  redrawOverlay();
+  showSectionTab(key);
+});
+
+map.on('dblclick', e => {
+  if (!zoneMode || draftPolygon.length < 3) return;
+  L.DomEvent.stop(e);
+  finalizeZone();
+});
+
+map.on('mousemove', e => {
+  if (!zoneMode) return;
+  mouseLatLng = { lat: e.latlng.lat, lng: e.latlng.lng };
+  redrawOverlay();
+});
+
+// ── Zone management ───────────────────────────────────────────────────────────
+function updateZoneUI() {
+  const defined = terminalPolygon.length >= 3;
+  document.getElementById('zone-btn').style.display    = defined ? 'none' : '';
+  document.getElementById('zone-hint').classList.remove('on');
+  document.getElementById('zone-locked').style.display = defined ? 'flex' : 'none';
+}
+
+function toggleZoneMode() {
+  if (terminalPolygon.length >= 3) return;
+  zoneMode = !zoneMode;
+  draftPolygon = [];
+  mouseLatLng  = null;
+  const btn = document.getElementById('zone-btn');
+  btn.classList.toggle('active', zoneMode);
+  btn.textContent = zoneMode ? '✏ Trazando zona…' : '✏ Definir zona del techo';
+  document.getElementById('zone-hint').classList.toggle('on', zoneMode);
+  map.doubleClickZoom[zoneMode ? 'disable' : 'enable']();
+  document.getElementById('map').style.cursor = zoneMode ? 'crosshair' : '';
+  redrawOverlay();
+}
+
+function finalizeZone() {
+  terminalPolygon = [...draftPolygon];
+  draftPolygon    = [];
+  mouseLatLng     = null;
+  zoneMode        = false;
+  localStorage.setItem(STORAGE_ZONE, JSON.stringify(terminalPolygon));
+  map.doubleClickZoom.enable();
+  document.getElementById('map').style.cursor = '';
+  updateZoneUI();
+  redrawOverlay();
+}
+
+function unlockZone() {
+  if (!confirm('¿Modificar la zona del techo?\nPodrás redibujar el contorno.')) return;
+  terminalPolygon = [];
+  draftPolygon    = [];
+  localStorage.removeItem(STORAGE_ZONE);
+  updateZoneUI();
+  redrawOverlay();
+}
+
+// ── Grid management ───────────────────────────────────────────────────────────
+function lockGrid() {
+  const cols = getCols(), rows = getRows();
+  if (cols < 1 || rows < 1) { alert('Valores inválidos.'); return; }
+  localStorage.setItem(STORAGE_GRID, JSON.stringify({ cols, rows, locked: true }));
+  document.getElementById('cols').value = cols;
+  document.getElementById('rows').value = rows;
+  document.getElementById('grid-edit-area').style.display   = 'none';
+  document.getElementById('grid-locked-area').style.display = 'flex';
+  document.getElementById('grid-locked-label').textContent  = `${cols}×${rows}`;
+  redrawOverlay();
+}
+
+function unlockGrid() {
+  if (!confirm('¿Modificar el seccionado?\nLas incidencias existentes quedan en las celdas antiguas.')) return;
+  document.getElementById('grid-edit-area').style.display   = 'flex';
+  document.getElementById('grid-locked-area').style.display = 'none';
+  const s = JSON.parse(localStorage.getItem(STORAGE_GRID) || '{}');
+  s.locked = false;
+  localStorage.setItem(STORAGE_GRID, JSON.stringify(s));
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+let sidebarOpen = true;
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  const t = document.getElementById('sb-toggle');
+  t.textContent = sidebarOpen ? '▶' : '◀';
+}
+
+function showSectionTab(key) {
+  showTab('section');
+  const incs = cellIncidents(key);
+  document.getElementById('section-info').style.display = 'block';
+  document.getElementById('section-title').textContent  = `Sección ${key}`;
+  document.getElementById('section-count').textContent  = `${incs.length} incidencia(s)`;
+  renderSectionList(key);
+  if (!sidebarOpen) toggleSidebar();
+}
+
+function renderSectionList(key) {
+  const incs = cellIncidents(key).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const el   = document.getElementById('section-incidents');
+  const addBtn = `<button class="btn-primary" style="width:100%;margin-bottom:8px" onclick="openModal('${key}')">+ Nueva incidencia en ${key}</button>`;
+  if (!incs.length) { el.innerHTML = addBtn + '<div class="empty">Sin incidencias.</div>'; return; }
+  el.innerHTML = addBtn + incs.map(i => `
+    <div class="incident-card ${i.severity}">
+      <div class="inc-header">
+        <div style="flex:1;min-width:0">
+          <div class="inc-title">${escHtml(i.desc)}</div>
+          <div class="inc-meta">${formatDate(i.date)}</div>
+        </div>
+        <div class="inc-actions">
+          <span class="badge ${i.severity}">${i.severity.toUpperCase()}</span>
+          <span class="badge ${i.status}">${statusLabel(i.status)}</span>
+          <div style="display:flex;gap:2px;margin-top:2px">
+            <button class="icon-btn edit" onclick="openEditModal('${i.id}')">✏</button>
+            <button class="icon-btn del"  onclick="deleteIncident('${i.id}')">✕</button>
+          </div>
+        </div>
+      </div>
+      ${i.notes ? `<div class="inc-desc">${escHtml(i.notes)}</div>` : ''}
+    </div>`).join('');
+}
+
+function renderAllList() {
+  let list = [...incidents].sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (currentFilter !== 'all') {
+    list = ['abierta','en_reparacion','cerrada'].includes(currentFilter)
+      ? list.filter(i => i.status === currentFilter)
+      : list.filter(i => i.severity === currentFilter);
+  }
+  const el = document.getElementById('all-incidents');
+  if (!list.length) { el.innerHTML = '<div class="empty">No hay incidencias.</div>'; return; }
+  el.innerHTML = list.map(i => `
+    <div class="all-list-item ${i.severity}" onclick="jumpToCell('${i.cell}')">
+      <div class="row">
+        <span class="section-tag">§ ${i.cell}</span>
+        <div style="display:flex;gap:3px;align-items:center">
+          <span class="badge ${i.severity}">${i.severity.toUpperCase()}</span>
+          <span class="badge ${i.status}">${statusLabel(i.status)}</span>
+          <button class="icon-btn edit" onclick="event.stopPropagation();openEditModal('${i.id}')">✏</button>
+        </div>
+      </div>
+      <div class="desc">${escHtml(i.desc)}</div>
+      <div style="font-size:0.68rem;color:#8892b0;margin-top:2px">${formatDate(i.date)}</div>
+    </div>`).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent  = incidents.length;
+  document.getElementById('stat-open').textContent   = incidents.filter(i => i.status === 'abierta').length;
+  document.getElementById('stat-repair').textContent = incidents.filter(i => i.status === 'en_reparacion').length;
+  document.getElementById('stat-closed').textContent = incidents.filter(i => i.status === 'cerrada').length;
+  renderAllList();
+  if (selectedCell) renderSectionList(selectedCell);
+}
+
+function jumpToCell(key) {
+  selectedCell = key;
+  redrawOverlay();
+  showSectionTab(key);
+  // Pan al centro de la celda
+  if (terminalPolygon.length >= 3) {
+    const c = key.charCodeAt(0) - 65;
+    const r = parseInt(key.slice(1)) - 1;
+    const center = getCellCenter(r, c, getZoneBbox());
+    map.setView([center.lat, center.lng], Math.max(map.getZoom(), 19), { animate: true });
+    flashCell(key);
+  }
+}
+
+function flashCell(key) {
+  if (terminalPolygon.length < 3) return;
+  const bbox = getZoneBbox();
+  const c = key.charCodeAt(0) - 65;
+  const r = parseInt(key.slice(1)) - 1;
+  let step = 0;
+  function draw() {
+    redrawOverlay();
+    if (step < 6) {
+      const px = getCellPx(r, c, bbox);
+      const alpha = step % 2 === 0 ? 0.95 : 0.15;
+      ctx.beginPath();
+      ctx.moveTo(px.nw.x, px.nw.y); ctx.lineTo(px.ne.x, px.ne.y);
+      ctx.lineTo(px.se.x, px.se.y); ctx.lineTo(px.sw.x, px.sw.y);
+      ctx.closePath();
+      ctx.strokeStyle = `rgba(233,69,96,${alpha})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      step++;
+      setTimeout(draw, 130);
+    }
+  }
+  draw();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+let editingCell = null, editingIncidentId = null;
+
+function openModal(key) {
+  editingCell = key; editingIncidentId = null;
+  document.getElementById('modal-title').textContent = `Nueva incidencia — Sección ${key}`;
+  const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('f-date').value     = now.toISOString().slice(0,16);
+  document.getElementById('f-desc').value     = '';
+  document.getElementById('f-severity').value = 'media';
+  document.getElementById('f-status').value   = 'abierta';
+  document.getElementById('f-notes').value    = '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-desc').focus(), 80);
+}
+
+function openEditModal(id) {
+  const inc = incidents.find(i => i.id === id); if (!inc) return;
+  editingCell = inc.cell; editingIncidentId = id;
+  document.getElementById('modal-title').textContent = `Editar — Sección ${inc.cell}`;
+  document.getElementById('f-desc').value     = inc.desc;
+  document.getElementById('f-date').value     = inc.date;
+  document.getElementById('f-severity').value = inc.severity;
+  document.getElementById('f-status').value   = inc.status;
+  document.getElementById('f-notes').value    = inc.notes || '';
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-desc').focus(), 80);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingCell = null; editingIncidentId = null;
+}
+
+function saveIncident() {
+  const desc = document.getElementById('f-desc').value.trim();
+  if (!desc) { alert('La descripción es obligatoria.'); return; }
+  const data = {
+    cell: editingCell, desc,
+    date:     document.getElementById('f-date').value,
+    severity: document.getElementById('f-severity').value,
+    status:   document.getElementById('f-status').value,
+    notes:    document.getElementById('f-notes').value.trim(),
+  };
+  if (editingIncidentId) {
+    const idx = incidents.findIndex(i => i.id === editingIncidentId);
+    if (idx !== -1) incidents[idx] = { ...incidents[idx], ...data };
+  } else {
+    incidents.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), ...data });
+  }
+  persist(); closeModal(); redrawOverlay(); showSectionTab(editingCell || data.cell);
+}
+
+function deleteIncident(id) {
+  if (!confirm('¿Eliminar esta incidencia?')) return;
+  const cell = incidents.find(i => i.id === id)?.cell;
+  incidents = incidents.filter(i => i.id !== id);
+  persist(); redrawOverlay();
+  if (cell) renderSectionList(cell);
+}
+
+function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents)); updateStats(); }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function toggleHeatmap() {
+  showHeatmap = !showHeatmap;
+  document.getElementById('heatmap-btn').textContent = `🌡 Calor: ${showHeatmap ? 'ON' : 'OFF'}`;
+  redrawOverlay();
+}
+function toggleActiveOnly() {
+  showActiveOnly = !showActiveOnly;
+  const btn = document.getElementById('active-btn');
+  btn.textContent = `👁 Solo activas: ${showActiveOnly ? 'ON' : 'OFF'}`;
+  btn.classList.toggle('on', showActiveOnly);
+  redrawOverlay();
+}
+function showTab(name) {
+  const names = ['overview','section','all'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
+  document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'all') renderAllList();
+}
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active'); renderAllList();
+}
+function exportCSV() {
+  if (!incidents.length) { alert('No hay incidencias.'); return; }
+  const header = ['Sección','Descripción','Fecha','Severidad','Estado','Observaciones'];
+  const rows   = incidents.map(i => [i.cell, i.desc, i.date, i.severity, statusLabel(i.status), i.notes]);
+  const csv    = [header, ...rows].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = `incidencias_techo_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+function statusLabel(s) { return { abierta:'Abierta', en_reparacion:'En reparación', cerrada:'Cerrada' }[s] || s; }
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.key === 'q' || e.key === 'Q') { rotateCCW(); return; }
+  if (e.key === 'e' || e.key === 'E') { rotateCW();  return; }
+  if (e.key === 'n' || e.key === 'N') { resetNorth(); return; }
+  if (e.key === 'Escape') {
+    if (zoneMode) {
+      zoneMode = false; draftPolygon = []; mouseLatLng = null;
+      document.getElementById('zone-btn').classList.remove('active');
+      document.getElementById('zone-btn').textContent = '✏ Definir zona del techo';
+      document.getElementById('zone-hint').classList.remove('on');
+      document.getElementById('map').style.cursor = '';
+      map.doubleClickZoom.enable();
+      redrawOverlay(); return;
+    }
+    closeModal();
+  }
+});
+document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateStats();
+updateZoneUI();
+
+// Restaurar grilla
+const sg = JSON.parse(localStorage.getItem(STORAGE_GRID) || '{}');
+if (sg.cols) {
+  document.getElementById('cols').value = sg.cols;
+  document.getElementById('rows').value = sg.rows;
+  if (sg.locked) lockGrid();
+}
+
+// Dibujar cuando el mapa esté listo
+map.whenReady(() => { resizeCanvas(); redrawOverlay(); drawCompass(); });
+</script>
+</body>
+</html>
