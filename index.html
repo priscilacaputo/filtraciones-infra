@@ -1021,12 +1021,19 @@ function rotateGrid(delta, reset = false) {
 
 function updateZoneUI() {
   const defined = terminalPolygon.length >= 3;
+  // Botón "Definir zona": solo si no hay zona Y es admin (o no hay zona aún)
   document.getElementById('zone-btn').style.display    = defined ? 'none' : '';
   document.getElementById('zone-hint').classList.remove('on');
-  document.getElementById('zone-locked').style.display = defined ? 'flex' : 'none';
-  // Mostrar control de rotación de grilla solo cuando hay zona
+
+  const lockedEl = document.getElementById('zone-locked');
+  lockedEl.style.display = defined ? 'flex' : 'none';
+  // Botón Modificar zona: solo admin
+  const zoneModBtn = lockedEl.querySelector('button');
+  if (zoneModBtn) zoneModBtn.style.display = IS_ADMIN ? '' : 'none';
+
+  // Control rotación de grilla: solo visible cuando hay zona Y es admin
   const hudEl = document.getElementById('grid-rot-hud');
-  if (hudEl) hudEl.style.display = defined ? '' : 'none';
+  if (hudEl) hudEl.style.display = (defined && IS_ADMIN) ? '' : 'none';
 }
 
 function toggleZoneMode() {
@@ -1073,8 +1080,15 @@ function applyGridLockUI(cols, rows) {
   document.getElementById('cols').value = cols;
   document.getElementById('rows').value = rows;
   document.getElementById('grid-edit-area').style.display   = 'none';
-  document.getElementById('grid-locked-area').style.display = 'flex';
+  const lockedArea = document.getElementById('grid-locked-area');
+  lockedArea.style.display = 'flex';
   document.getElementById('grid-locked-label').textContent  = `${cols}×${rows}`;
+  // Botón Modificar grilla: solo admin
+  const gridModBtn = lockedArea.querySelector('button');
+  if (gridModBtn) gridModBtn.style.display = IS_ADMIN ? '' : 'none';
+  // Rotación de grilla: solo admin
+  const hudEl = document.getElementById('grid-rot-hud');
+  if (hudEl) hudEl.style.display = IS_ADMIN ? '' : 'none';
 }
 
 async function lockGrid() {
