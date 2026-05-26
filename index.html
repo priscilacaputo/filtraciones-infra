@@ -315,36 +315,109 @@
   }
   #fab:hover { opacity: .9; }
 
+  /* ── Cell chip (celda seleccionada) ─────────────────────── */
+  #cell-chip {
+    display: none;
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    background: rgba(0,32,91,0.93);
+    border: 1.5px solid var(--accent);
+    border-radius: 24px;
+    padding: 6px 8px 6px 16px;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  #cell-chip.visible { display: flex; }
+  #cell-chip-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+  #cell-chip-sub {
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.6);
+  }
+  #cell-chip-add {
+    background: var(--accent);
+    color: var(--primary);
+    border: none;
+    border-radius: 18px;
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: unset;
+  }
+
   /* ── Mobile ──────────────────────────────────────────────── */
   @media (max-width: 768px) {
     header {
-      height: 48px;
+      height: 46px;
       padding: 0 12px;
     }
-    header h1 { font-size: 0.82rem; }
+    header h1 { font-size: 0.83rem; }
     header .header-sub { display: none; }
-    .header-aa2000 { font-size: 0.58rem; }
+    .header-aa2000 { font-size: 0.55rem; letter-spacing: 0.03em; }
 
-    .toolbar { height: auto; padding: 6px 10px; flex-wrap: nowrap; gap: 5px; }
-    .toolbar button { min-height: 38px; font-size: 0.72rem; padding: 5px 9px; }
-    .toolbar input[type=number] { min-height: 38px; width: 44px; }
+    /* Toolbar compacta: solo muestra controles esenciales */
+    .toolbar {
+      height: auto;
+      min-height: 44px;
+      padding: 5px 10px;
+      flex-wrap: nowrap;
+      gap: 5px;
+      overflow-x: auto;
+    }
+    .toolbar button { min-height: 40px; font-size: 0.72rem; padding: 5px 10px; }
+    .toolbar input[type=number] { min-height: 40px; width: 46px; }
+    .toolbar label { font-size: 0.7rem; }
 
-    /* App: map fills all, sidebar floats over as bottom sheet */
+    /* App: mapa ocupa todo el espacio disponible */
     .app {
-      height: calc(100vh - 90px - 54px); /* header + toolbar + mobile tab bar */
+      height: calc(100dvh - 46px - 44px);
       flex-direction: column;
+      overflow: hidden;
     }
 
-    #map { flex: 1; width: 100%; }
+    #map { flex: 1; width: 100%; min-height: 0; }
 
-    /* Sidebar becomes bottom sheet */
+    /* HUD: botones más grandes, reposicionado */
+    #map-hud {
+      bottom: calc(56px + 16px);
+      left: 8px;
+      gap: 5px;
+    }
+    .hud-group {
+      padding: 5px 8px;
+      gap: 4px;
+    }
+    .hud-group button {
+      width: 36px;
+      height: 36px;
+      font-size: 1.05rem;
+    }
+    .hud-group span { font-size: 0.68rem; }
+
+    /* Compass: más pequeño en mobile */
+    #compass { width: 44px; height: 44px; top: 10px; right: 10px; }
+    #compass canvas { width: 44px; height: 44px; }
+
+    /* Cell chip: visible en mobile cuando hay celda seleccionada */
+    #cell-chip { top: 10px; }
+
+    /* ── Bottom sheet ── */
     .sidebar-wrap {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 0; left: 0; right: 0;
       z-index: 600;
-      flex-direction: column-reverse; /* handle on top */
+      flex-direction: column-reverse;
       height: auto;
     }
 
@@ -352,60 +425,109 @@
 
     .sidebar {
       width: 100% !important;
-      height: 58vh;
+      height: 76vh;
       border-left: none;
-      border-top: 2px solid var(--border);
-      border-radius: 16px 16px 0 0;
-      transform: translateY(calc(100% - 48px)); /* show only tabs */
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-top: 2px solid var(--accent);
+      border-radius: 20px 20px 0 0;
+      transform: translateY(calc(100% - 56px));
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.45);
     }
 
-    .sidebar.sheet-expanded {
-      transform: translateY(0);
-    }
-
+    .sidebar.sheet-expanded { transform: translateY(0); }
     .sidebar.collapsed {
       width: 100% !important;
-      transform: translateY(calc(100% - 48px));
+      transform: translateY(calc(100% - 56px));
     }
 
-    /* Drag handle above tabs */
+    /* Handle de arrastre — área táctil grande */
     .sheet-handle {
-      display: block;
-      width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 28px;
+      flex-shrink: 0;
+      cursor: grab;
+      touch-action: none;
+    }
+    .sheet-handle::after {
+      content: '';
+      width: 44px;
       height: 4px;
       background: var(--border);
       border-radius: 2px;
-      margin: 10px auto 6px;
-      flex-shrink: 0;
-      cursor: pointer;
     }
 
-    .sidebar-tabs { border-radius: 16px 16px 0 0; }
-    .tab { min-height: 44px; font-size: 0.8rem; }
+    .sidebar-tabs {
+      border-radius: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      min-height: 48px;
+      font-size: 0.82rem;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .tab-icon { font-size: 1rem; }
 
-    /* HUD above the bottom sheet */
-    #map-hud { bottom: calc(48px + 20px); }
+    /* Contenido del sheet */
+    .tab-content { padding: 14px 12px; }
 
-    /* FAB visible on mobile */
-    #fab { display: flex; }
+    /* Stats más grandes */
+    .stats-grid { gap: 8px; margin-bottom: 14px; }
+    .stat-card { padding: 12px 8px; border-radius: 10px; }
+    .stat-card .value { font-size: 2rem; }
+    .stat-card .label { font-size: 0.68rem; margin-top: 3px; }
 
-    /* Modal full width on mobile */
-    .modal { padding: 16px; border-radius: 16px 16px 0 0; align-self: flex-end; width: 100%; max-width: 100%; margin: 0; max-height: 90vh; }
+    /* Incident cards más legibles */
+    .incident-card { padding: 12px; border-radius: 8px; border-left-width: 5px; }
+    .incident-card .inc-title { font-size: 0.85rem; }
+    .incident-card .inc-meta  { font-size: 0.72rem; }
+    .incident-card .inc-desc  { font-size: 0.78rem; margin-top: 6px; }
+    .badge { font-size: 0.65rem; padding: 3px 7px; }
+    .icon-btn { min-width: 36px; min-height: 36px; font-size: 0.95rem; }
+    .inc-actions { gap: 4px; }
+
+    /* Lista "Todas" */
+    .all-list-item { padding: 11px 12px; margin-bottom: 6px; border-radius: 8px; border-left-width: 4px; }
+    .all-list-item .desc { font-size: 0.78rem; }
+    .filter-bar { gap: 6px; margin-bottom: 12px; }
+    .filter-btn { min-height: 36px; padding: 5px 12px; font-size: 0.72rem; border-radius: 18px; }
+
+    /* Botón nueva incidencia */
+    .btn-primary[style*="width:100%"] { min-height: 46px; font-size: 0.82rem; border-radius: 10px; }
+
+    /* Section info */
+    .section-info { padding: 12px; margin-bottom: 12px; }
+    .section-info h3 { font-size: 0.95rem; }
+
+    /* FAB visible en mobile */
+    #fab { display: flex; bottom: 72px; }
+
+    /* Modal bottom sheet en mobile */
     .modal-overlay { align-items: flex-end; }
-
+    .modal {
+      padding: 20px 16px;
+      border-radius: 20px 20px 0 0;
+      align-self: flex-end;
+      width: 100%; max-width: 100%; margin: 0;
+      max-height: 92vh;
+    }
+    .modal h2 { font-size: 1rem; margin-bottom: 16px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group input,
+    .form-group select,
+    .form-group textarea { min-height: 46px; font-size: 0.85rem; padding: 10px 12px; }
+    .form-group textarea { min-height: 80px; }
     .form-row { flex-direction: column; gap: 0; }
-
-    /* Stats grid 2-col on mobile is fine */
-    .stat-card .value { font-size: 1.6rem; }
-
-    /* Larger touch targets for incident actions */
-    .icon-btn { min-width: 32px; min-height: 32px; font-size: 0.9rem; }
+    .modal-actions { gap: 10px; margin-top: 16px; }
+    .modal-actions button { min-height: 46px; font-size: 0.85rem; flex: 1; }
   }
 
   @media (max-width: 400px) {
-    header h1 { font-size: 0.73rem; }
+    header h1 { font-size: 0.75rem; }
     .header-aa2000 { display: none; }
+    .hud-group button { width: 34px; height: 34px; }
   }
 </style>
 </head>
@@ -471,6 +593,15 @@
   <div id="map">
     <canvas id="overlay-canvas"></canvas>
 
+    <!-- Chip celda seleccionada -->
+    <div id="cell-chip">
+      <div>
+        <div id="cell-chip-label">—</div>
+        <div id="cell-chip-sub">Sin incidencias</div>
+      </div>
+      <button id="cell-chip-add" onclick="openModal(selectedCell)">+ Incidencia</button>
+    </div>
+
     <!-- Compass rose -->
     <div id="compass" onclick="resetNorth()" title="Clic para orientar al norte">
       <canvas id="compass-canvas" width="52" height="52"></canvas>
@@ -507,9 +638,9 @@
     <div class="sidebar" id="sidebar">
       <div class="sheet-handle" onclick="toggleMobileSheet()"></div>
       <div class="sidebar-tabs">
-        <div class="tab active" onclick="showTab('overview')">Resumen</div>
-        <div class="tab" onclick="showTab('section')">Sección</div>
-        <div class="tab" onclick="showTab('all')">Todas</div>
+        <div class="tab active" onclick="showTab('overview')"><span class="tab-icon">📊</span>Resumen</div>
+        <div class="tab" onclick="showTab('section')"><span class="tab-icon">📍</span>Sección</div>
+        <div class="tab" onclick="showTab('all')"><span class="tab-icon">📋</span>Todas</div>
       </div>
 
       <div class="tab-content active" id="tab-overview">
@@ -1139,6 +1270,7 @@ function showSectionTab(key) {
   document.getElementById('section-count').textContent  = `${incs.length} incidencia(s)`;
   renderSectionList(key);
   if (!sidebarOpen && !isMobile()) toggleSidebar();
+  updateCellChip(key);
 }
 
 function renderSectionList(key) {
@@ -1387,6 +1519,49 @@ document.getElementById('modal').addEventListener('click', e => {
   if (e.target === document.getElementById('modal')) closeModal();
 });
 
+// ── Swipe gesture en el handle del bottom sheet ───────────────────────────────
+(function() {
+  const handle  = document.querySelector('.sheet-handle');
+  const sidebar = document.getElementById('sidebar');
+  let startY = 0, startExpanded = false;
+
+  handle.addEventListener('touchstart', e => {
+    startY       = e.touches[0].clientY;
+    startExpanded = sidebar.classList.contains('sheet-expanded');
+    sidebar.style.transition = 'none';
+  }, { passive: true });
+
+  handle.addEventListener('touchmove', e => {
+    const dy = e.touches[0].clientY - startY;
+    const base = startExpanded ? 0 : (sidebar.offsetHeight - 56);
+    const clamp = Math.max(0, Math.min(sidebar.offsetHeight - 56, base + dy));
+    sidebar.style.transform = `translateY(${clamp}px)`;
+  }, { passive: true });
+
+  handle.addEventListener('touchend', e => {
+    sidebar.style.transition = '';
+    sidebar.style.transform  = '';
+    const dy = e.changedTouches[0].clientY - startY;
+    if (dy < -40)       sidebar.classList.add('sheet-expanded');
+    else if (dy > 40)   sidebar.classList.remove('sheet-expanded');
+    else if (!startExpanded) sidebar.classList.add('sheet-expanded');
+    else                sidebar.classList.remove('sheet-expanded');
+  }, { passive: true });
+})();
+
+// ── Cell chip ─────────────────────────────────────────────────────────────────
+function updateCellChip(key) {
+  const chip = document.getElementById('cell-chip');
+  if (!key) { chip.classList.remove('visible'); return; }
+  const incs   = cellIncidents(key);
+  const active = incs.filter(i => i.status !== 'cerrada').length;
+  document.getElementById('cell-chip-label').textContent = `Sección ${key}`;
+  document.getElementById('cell-chip-sub').textContent   =
+    incs.length === 0 ? 'Sin incidencias'
+    : `${incs.length} incidencia${incs.length > 1 ? 's' : ''}${active > 0 ? ` · ${active} activa${active > 1 ? 's' : ''}` : ''}`;
+  chip.classList.add('visible');
+}
+
 // Close mobile sheet when tapping the map
 document.getElementById('map').addEventListener('touchstart', () => {
   if (isMobile()) toggleMobileSheet(false);
@@ -1419,7 +1594,7 @@ async function initApp() {
       incidents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       updateStats();
       redrawOverlay();
-      if (selectedCell) renderSectionList(selectedCell);
+      if (selectedCell) { renderSectionList(selectedCell); updateCellChip(selectedCell); }
     }, err => {
       console.error('Error en onSnapshot:', err);
     });
