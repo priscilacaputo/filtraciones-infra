@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+<!-- Firebase compat SDK (no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --primary:    #00205B;
@@ -273,6 +276,20 @@
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   .empty { text-align: center; color: var(--text-muted); font-size: 0.78rem; padding: 18px; line-height: 1.6; }
 
+  /* ── Loading overlay ─────────────────────────────────────── */
+  #loading-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: var(--primary);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; transition: opacity 0.4s ease;
+  }
+  #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+  #loading-overlay svg { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-overlay p { color: rgba(255,255,255,0.7); font-size: 0.82rem; letter-spacing: 0.05em; }
+  #loading-overlay strong { color: var(--accent); font-size: 1rem; letter-spacing: 0.08em; }
+
   /* ── FAB (mobile only) ───────────────────────────────────── */
   #fab {
     display: none;
@@ -393,6 +410,16 @@
 </style>
 </head>
 <body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+    <circle cx="20" cy="20" r="17" stroke="rgba(255,255,255,0.2)" stroke-width="4"/>
+    <path d="M20 3 A17 17 0 0 1 37 20" stroke="#E8A000" stroke-width="4" stroke-linecap="round"/>
+  </svg>
+  <strong>AEROPUERTOS ARGENTINA 2000</strong>
+  <p>Conectando con base de datos…</p>
+</div>
 
 <header>
   <div class="header-logo">
@@ -574,14 +601,27 @@
 </div>
 
 <script>
-// ── Storage keys ──────────────────────────────────────────────────────────────
-const STORAGE_KEY  = 'techo_aep_incidents_v2';
-const STORAGE_ZONE = 'techo_aep_zone_v3';
-const STORAGE_GRID = 'techo_aep_grid_v2';
+// ── Firebase init ─────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyC2KfzsW9_q7Lar0nF65UPMcNMpA7MxtB0",
+  authDomain:        "monitoreo-de-techos.firebaseapp.com",
+  projectId:         "monitoreo-de-techos",
+  storageBucket:     "monitoreo-de-techos.firebasestorage.app",
+  messagingSenderId: "150969436616",
+  appId:             "1:150969436616:web:a9db26d80ec0f25c1818fd"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Colecciones
+const COL_INC    = 'incidents';
+const COL_CONFIG = 'config';
+const DOC_ZONE   = 'zone';
+const DOC_GRID   = 'grid';
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let incidents       = JSON.parse(localStorage.getItem(STORAGE_KEY)  || '[]');
-let terminalPolygon = JSON.parse(localStorage.getItem(STORAGE_ZONE) || '[]');
+let incidents       = [];
+let terminalPolygon = [];
 let selectedCell    = null;
 let showHeatmap     = true;
 let showActiveOnly  = false;
@@ -938,47 +978,57 @@ function toggleZoneMode() {
   redrawOverlay();
 }
 
-function finalizeZone() {
+async function finalizeZone() {
   terminalPolygon = [...draftPolygon];
   draftPolygon    = [];
   mouseLatLng     = null;
   zoneMode        = false;
-  localStorage.setItem(STORAGE_ZONE, JSON.stringify(terminalPolygon));
   map.doubleClickZoom.enable();
   document.getElementById('map').style.cursor = '';
   updateZoneUI();
   redrawOverlay();
+  try {
+    await db.collection(COL_CONFIG).doc(DOC_ZONE).set({ polygon: terminalPolygon });
+  } catch(e) { console.error('Error guardando zona:', e); }
 }
 
-function unlockZone() {
+async function unlockZone() {
   if (!confirm('¿Modificar la zona del techo?\nPodrás redibujar el contorno.')) return;
   terminalPolygon = [];
   draftPolygon    = [];
-  localStorage.removeItem(STORAGE_ZONE);
   updateZoneUI();
   redrawOverlay();
+  try {
+    await db.collection(COL_CONFIG).doc(DOC_ZONE).set({ polygon: [] });
+  } catch(e) { console.error('Error borrando zona:', e); }
 }
 
 // ── Grid management ───────────────────────────────────────────────────────────
-function lockGrid() {
-  const cols = getCols(), rows = getRows();
-  if (cols < 1 || rows < 1) { alert('Valores inválidos.'); return; }
-  localStorage.setItem(STORAGE_GRID, JSON.stringify({ cols, rows, locked: true }));
+function applyGridLockUI(cols, rows) {
   document.getElementById('cols').value = cols;
   document.getElementById('rows').value = rows;
   document.getElementById('grid-edit-area').style.display   = 'none';
   document.getElementById('grid-locked-area').style.display = 'flex';
   document.getElementById('grid-locked-label').textContent  = `${cols}×${rows}`;
-  redrawOverlay();
 }
 
-function unlockGrid() {
+async function lockGrid() {
+  const cols = getCols(), rows = getRows();
+  if (cols < 1 || rows < 1) { alert('Valores inválidos.'); return; }
+  applyGridLockUI(cols, rows);
+  redrawOverlay();
+  try {
+    await db.collection(COL_CONFIG).doc(DOC_GRID).set({ cols, rows, locked: true });
+  } catch(e) { console.error('Error guardando grilla:', e); }
+}
+
+async function unlockGrid() {
   if (!confirm('¿Modificar el seccionado?\nLas incidencias existentes quedan en las celdas antiguas.')) return;
   document.getElementById('grid-edit-area').style.display   = 'flex';
   document.getElementById('grid-locked-area').style.display = 'none';
-  const s = JSON.parse(localStorage.getItem(STORAGE_GRID) || '{}');
-  s.locked = false;
-  localStorage.setItem(STORAGE_GRID, JSON.stringify(s));
+  try {
+    await db.collection(COL_CONFIG).doc(DOC_GRID).update({ locked: false });
+  } catch(e) { console.error('Error desbloqueando grilla:', e); }
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -1142,34 +1192,42 @@ function closeModal() {
   editingCell = null; editingIncidentId = null;
 }
 
-function saveIncident() {
+async function saveIncident() {
   const desc = document.getElementById('f-desc').value.trim();
   if (!desc) { alert('La descripción es obligatoria.'); return; }
+  const cell = editingCell;
   const data = {
-    cell: editingCell, desc,
+    cell,
+    desc,
     date:     document.getElementById('f-date').value,
     severity: document.getElementById('f-severity').value,
     status:   document.getElementById('f-status').value,
     notes:    document.getElementById('f-notes').value.trim(),
+    updatedAt: new Date().toISOString()
   };
-  if (editingIncidentId) {
-    const idx = incidents.findIndex(i => i.id === editingIncidentId);
-    if (idx !== -1) incidents[idx] = { ...incidents[idx], ...data };
-  } else {
-    incidents.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), ...data });
+  try {
+    if (editingIncidentId) {
+      await db.collection(COL_INC).doc(editingIncidentId).update(data);
+    } else {
+      await db.collection(COL_INC).add(data);
+    }
+    closeModal();
+    showSectionTab(cell);
+  } catch(e) {
+    console.error('Error guardando incidencia:', e);
+    alert('Error al guardar. Verificá tu conexión.');
   }
-  persist(); closeModal(); redrawOverlay(); showSectionTab(editingCell || data.cell);
 }
 
-function deleteIncident(id) {
+async function deleteIncident(id) {
   if (!confirm('¿Eliminar esta incidencia?')) return;
-  const cell = incidents.find(i => i.id === id)?.cell;
-  incidents = incidents.filter(i => i.id !== id);
-  persist(); redrawOverlay();
-  if (cell) renderSectionList(cell);
+  try {
+    await db.collection(COL_INC).doc(id).delete();
+  } catch(e) {
+    console.error('Error eliminando incidencia:', e);
+    alert('Error al eliminar. Verificá tu conexión.');
+  }
 }
-
-function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(incidents)); updateStats(); }
 
 // ── FAB ───────────────────────────────────────────────────────────────────────
 function fabAction() {
@@ -1255,18 +1313,49 @@ document.getElementById('map').addEventListener('touchstart', () => {
   if (isMobile()) toggleMobileSheet(false);
 }, { passive: true });
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-updateStats();
-updateZoneUI();
+// ── Init con Firestore ────────────────────────────────────────────────────────
+async function initApp() {
+  try {
+    // 1. Cargar zona del techo
+    const zoneDoc = await db.collection(COL_CONFIG).doc(DOC_ZONE).get();
+    if (zoneDoc.exists) {
+      terminalPolygon = zoneDoc.data().polygon || [];
+    }
 
-const sg = JSON.parse(localStorage.getItem(STORAGE_GRID) || '{}');
-if (sg.cols) {
-  document.getElementById('cols').value = sg.cols;
-  document.getElementById('rows').value = sg.rows;
-  if (sg.locked) lockGrid();
+    // 2. Cargar configuración de grilla
+    const gridDoc = await db.collection(COL_CONFIG).doc(DOC_GRID).get();
+    if (gridDoc.exists) {
+      const g = gridDoc.data();
+      document.getElementById('cols').value = g.cols;
+      document.getElementById('rows').value = g.rows;
+      if (g.locked) applyGridLockUI(g.cols, g.rows);
+    }
+
+    // 3. Escuchar incidencias en tiempo real
+    db.collection(COL_INC).onSnapshot(snapshot => {
+      incidents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      updateStats();
+      redrawOverlay();
+      if (selectedCell) renderSectionList(selectedCell);
+    }, err => {
+      console.error('Error en onSnapshot:', err);
+    });
+
+    updateZoneUI();
+    map.whenReady(() => { resizeCanvas(); redrawOverlay(); drawCompass(); });
+
+  } catch(e) {
+    console.error('Error al inicializar:', e);
+    alert('No se pudo conectar con la base de datos.\nVerificá tu conexión a internet.');
+  } finally {
+    // Ocultar pantalla de carga
+    const ov = document.getElementById('loading-overlay');
+    ov.classList.add('fade-out');
+    setTimeout(() => ov.style.display = 'none', 450);
+  }
 }
 
-map.whenReady(() => { resizeCanvas(); redrawOverlay(); drawCompass(); });
+initApp();
 </script>
 </body>
 </html>
