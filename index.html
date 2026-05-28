@@ -356,6 +356,27 @@
     min-height: unset;
   }
 
+  /* Hint mobile */
+  #map-hint {
+    display: none;
+    position: absolute;
+    bottom: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 500;
+    background: rgba(0,32,91,0.85);
+    border: 1px solid rgba(232,160,0,0.4);
+    border-radius: 20px;
+    padding: 8px 18px;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+  }
+  #map-hint span { font-size: 0.78rem; color: rgba(255,255,255,0.85); }
+  @media (max-width: 768px) {
+    #map-hint { display: block; }
+    #map-hint.hidden { display: none; }
+  }
+
   /* ── Mobile ──────────────────────────────────────────────── */
   @media (max-width: 768px) {
     header {
@@ -388,9 +409,9 @@
 
     #map { flex: 1; width: 100%; min-height: 0; }
 
-    /* HUD: botones más grandes, reposicionado */
+    /* HUD: botones más grandes, reposicionado sobre el handle */
     #map-hud {
-      bottom: calc(56px + 16px);
+      bottom: calc(28px + 14px);
       left: 8px;
       gap: 5px;
     }
@@ -429,15 +450,19 @@
       border-left: none;
       border-top: 2px solid var(--accent);
       border-radius: 20px 20px 0 0;
-      transform: translateY(calc(100% - 56px));
+      /* arranca mostrando solo el handle (28px) para maximizar mapa */
+      transform: translateY(calc(100% - 28px));
       transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 -8px 32px rgba(0,0,0,0.45);
     }
 
+    /* peek: muestra handle + tabs (cuando hay celda seleccionada) */
+    .sidebar.sheet-peek { transform: translateY(calc(100% - 56px)); }
+    /* expandido: panel completo */
     .sidebar.sheet-expanded { transform: translateY(0); }
     .sidebar.collapsed {
       width: 100% !important;
-      transform: translateY(calc(100% - 56px));
+      transform: translateY(calc(100% - 28px));
     }
 
     /* Handle de arrastre — área táctil grande */
@@ -600,6 +625,11 @@
         <div id="cell-chip-sub">Sin incidencias</div>
       </div>
       <button id="cell-chip-add" onclick="openModal(selectedCell)">+ Incidencia</button>
+    </div>
+
+    <!-- Hint mobile (desaparece al seleccionar una celda) -->
+    <div id="map-hint">
+      <span>👆 Tocá un sector del techo para seleccionarlo</span>
     </div>
 
     <!-- Compass rose -->
@@ -778,10 +808,11 @@ const map = L.map('map', {
   zoom: 18,
   rotate: true,
   bearing: 0,
-  touchRotate: true,
+  touchRotate: true,   // dos dedos para rotar
   zoomControl: false,
-  doubleClickZoom: true,
-  tap: false  // Prevents tap delay on mobile
+  doubleClickZoom: false, // evita zoom accidental al doble-tap en mobile
+  tap: true,           // CRÍTICO: permite detectar taps en mobile
+  tapTolerance: 15     // píxeles de tolerancia para considerar un tap (no pan)
 });
 
 L.tileLayer(
@@ -1076,8 +1107,16 @@ function drawZone() {
   }
 }
 
+// ── Detección pan vs tap ──────────────────────────────────────────────────────
+let _mapDragged = false;
+map.on('dragstart',  () => { _mapDragged = true;  });
+map.on('dragend',    () => { setTimeout(() => { _mapDragged = false; }, 200); });
+map.on('zoomstart',  () => { _mapDragged = true;  });
+map.on('zoomend',    () => { setTimeout(() => { _mapDragged = false; }, 200); });
+
 // ── Map events ────────────────────────────────────────────────────────────────
 map.on('click', e => {
+  if (_mapDragged) return;   // ignorar clicks después de un pan/zoom
   const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
 
   if (zoneMode) {
@@ -1252,25 +1291,54 @@ function toggleSidebar() {
 
 function isMobile() { return window.innerWidth <= 768; }
 
+// Estados del bottom sheet mobile: collapsed → peek → expanded
+function setSheetState(state) {
+  // state: 'collapsed' | 'peek' | 'expanded'
+  if (!isMobile()) return;
+  const s = document.getElementById('sidebar');
+  s.classList.remove('sheet-peek', 'sheet-expanded');
+  if (state === 'peek')     s.classList.add('sheet-peek');
+  if (state === 'expanded') s.classList.add('sheet-expanded');
+}
+
+function getSheetState() {
+  const s = document.getElementById('sidebar');
+  if (s.classList.contains('sheet-expanded')) return 'expanded';
+  if (s.classList.contains('sheet-peek'))     return 'peek';
+  return 'collapsed';
+}
+
 function toggleMobileSheet(forceOpen) {
-  const sidebar = document.getElementById('sidebar');
-  const isExpanded = sidebar.classList.contains('sheet-expanded');
-  if (forceOpen === true || (!isExpanded && forceOpen !== false)) {
-    sidebar.classList.add('sheet-expanded');
-  } else {
-    sidebar.classList.remove('sheet-expanded');
-  }
+  if (!isMobile()) return;
+  if (forceOpen === true)  { setSheetState('expanded'); return; }
+  if (forceOpen === false) { setSheetState(selectedCell ? 'peek' : 'collapsed'); return; }
+  // Toggle: collapsed/peek → expanded, expanded → peek/collapsed
+  const cur = getSheetState();
+  if (cur === 'expanded') setSheetState(selectedCell ? 'peek' : 'collapsed');
+  else                    setSheetState('expanded');
 }
 
 function showSectionTab(key) {
-  showTab('section');
   const incs = cellIncidents(key);
   document.getElementById('section-info').style.display = 'block';
   document.getElementById('section-title').textContent  = `Sección ${key}`;
   document.getElementById('section-count').textContent  = `${incs.length} incidencia(s)`;
   renderSectionList(key);
-  if (!sidebarOpen && !isMobile()) toggleSidebar();
   updateCellChip(key);
+
+  if (isMobile()) {
+    // En mobile: mostrar chip + peek del sheet (tabs visibles, no tapa el mapa)
+    // Solo expandir completamente si el usuario ya lo pidió
+    if (getSheetState() !== 'expanded') setSheetState('peek');
+    // Asegurarse de que la tab "Sección" esté activa (sin disparar showTab que expande)
+    const names = ['overview','section','all'];
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === 'section'));
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    document.getElementById('tab-section').classList.add('active');
+  } else {
+    showTab('section');
+    if (!sidebarOpen) toggleSidebar();
+  }
 }
 
 function renderSectionList(key) {
@@ -1471,7 +1539,7 @@ function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'all') renderAllList();
-  if (isMobile()) toggleMobileSheet(true);
+  if (isMobile()) setSheetState('expanded');
 }
 function setFilter(f, btn) {
   currentFilter = f;
@@ -1523,18 +1591,19 @@ document.getElementById('modal').addEventListener('click', e => {
 (function() {
   const handle  = document.querySelector('.sheet-handle');
   const sidebar = document.getElementById('sidebar');
-  let startY = 0, startExpanded = false;
+  let startY = 0, startState = 'collapsed';
 
   handle.addEventListener('touchstart', e => {
-    startY       = e.touches[0].clientY;
-    startExpanded = sidebar.classList.contains('sheet-expanded');
+    startY     = e.touches[0].clientY;
+    startState = getSheetState();
     sidebar.style.transition = 'none';
   }, { passive: true });
 
   handle.addEventListener('touchmove', e => {
-    const dy = e.touches[0].clientY - startY;
-    const base = startExpanded ? 0 : (sidebar.offsetHeight - 56);
-    const clamp = Math.max(0, Math.min(sidebar.offsetHeight - 56, base + dy));
+    const dy   = e.touches[0].clientY - startY;
+    const h    = sidebar.offsetHeight;
+    const base = startState === 'expanded' ? 0 : startState === 'peek' ? h - 56 : h - 28;
+    const clamp = Math.max(0, Math.min(h - 28, base + dy));
     sidebar.style.transform = `translateY(${clamp}px)`;
   }, { passive: true });
 
@@ -1542,17 +1611,21 @@ document.getElementById('modal').addEventListener('click', e => {
     sidebar.style.transition = '';
     sidebar.style.transform  = '';
     const dy = e.changedTouches[0].clientY - startY;
-    if (dy < -40)       sidebar.classList.add('sheet-expanded');
-    else if (dy > 40)   sidebar.classList.remove('sheet-expanded');
-    else if (!startExpanded) sidebar.classList.add('sheet-expanded');
-    else                sidebar.classList.remove('sheet-expanded');
+    if      (dy < -40) setSheetState('expanded');
+    else if (dy >  40) setSheetState(selectedCell ? 'peek' : 'collapsed');
+    else               setSheetState(startState === 'expanded' ? (selectedCell ? 'peek' : 'collapsed') : 'expanded');
   }, { passive: true });
 })();
 
 // ── Cell chip ─────────────────────────────────────────────────────────────────
 function updateCellChip(key) {
   const chip = document.getElementById('cell-chip');
-  if (!key) { chip.classList.remove('visible'); return; }
+  const hint = document.getElementById('map-hint');
+  if (!key) {
+    chip.classList.remove('visible');
+    if (hint) hint.classList.remove('hidden');
+    return;
+  }
   const incs   = cellIncidents(key);
   const active = incs.filter(i => i.status !== 'cerrada').length;
   document.getElementById('cell-chip-label').textContent = `Sección ${key}`;
@@ -1560,12 +1633,13 @@ function updateCellChip(key) {
     incs.length === 0 ? 'Sin incidencias'
     : `${incs.length} incidencia${incs.length > 1 ? 's' : ''}${active > 0 ? ` · ${active} activa${active > 1 ? 's' : ''}` : ''}`;
   chip.classList.add('visible');
+  if (hint) hint.classList.add('hidden');
 }
 
-// Close mobile sheet when tapping the map
-document.getElementById('map').addEventListener('touchstart', () => {
+// Cerrar sheet al MOVER el mapa (pan), no al tocar (interfería con selección)
+map.on('dragstart', () => {
   if (isMobile()) toggleMobileSheet(false);
-}, { passive: true });
+});
 
 // ── Init con Firestore ────────────────────────────────────────────────────────
 async function initApp() {
