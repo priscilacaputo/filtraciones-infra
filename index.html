@@ -11,23 +11,26 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <!-- Firebase Storage removido — fotos se suben a Cloudinary -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --primary:    #00205B;
-    --primary-lt: #0d2d7a;
-    --accent:     #E8A000;
-    --accent-lt:  #FFB800;
-    --bg-body:    #070d1f;
-    --bg-panel:   #0c1730;
-    --bg-card:    #0f1f3d;
-    --bg-input:   #071024;
-    --border:     #1a3060;
-    --text:       #e8eaf0;
-    --text-muted: #8892b0;
-    --red:        #e74c3c;
-    --orange:     #f39c12;
-    --green:      #27ae60;
-    --purple:     #8e44ad;
+    --primary:      #021B3E;
+    --primary-lt:   #0a2e5c;
+    --accent:       #00C8B4;
+    --accent-lt:    #2DDED0;
+    --teal-start:   #2DCFBE;
+    --teal-end:     #4B7FD6;
+    --bg-body:      #040E1E;
+    --bg-panel:     #070F1E;
+    --bg-card:      #0C1A2E;
+    --bg-input:     #060D1A;
+    --border:       #132440;
+    --text:         #E6EEF8;
+    --text-muted:   #6B88AA;
+    --red:          #E74C3C;
+    --orange:       #F39C12;
+    --green:        #27AE60;
+    --purple:       #8E44AD;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,49 +38,115 @@
 
   /* ── Header ──────────────────────────────────────────────── */
   header {
-    background: var(--primary);
-    padding: 0 16px;
+    background: linear-gradient(105deg, #021B3E 0%, #0a2650 55%, #0d3060 100%);
+    padding: 0 20px;
     display: flex;
     align-items: center;
-    gap: 12px;
-    border-bottom: 3px solid var(--accent);
-    height: 52px;
+    gap: 14px;
+    border-bottom: 2px solid transparent;
+    border-image: linear-gradient(90deg, var(--teal-start), var(--teal-end)) 1;
+    height: 58px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--teal-start) 0%, var(--teal-end) 100%);
+  }
+
+  /* Logo mark */
+  .header-logomark {
+    flex-shrink: 0;
+    width: 42px; height: 42px;
+    border-radius: 11px;
+    overflow: hidden;
+    box-shadow: 0 2px 14px rgba(45,207,190,0.28);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .header-logomark img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+
+  /* Divider between logo and text */
+  .header-divider {
+    width: 1px; height: 30px;
+    background: rgba(255,255,255,0.12);
     flex-shrink: 0;
   }
-  .header-logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+
+  /* Brand text block */
+  .header-brand { flex-shrink: 0; }
+  .header-brand .brand-name {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .header-brand .brand-name span {
+    color: var(--accent);
+  }
+  .header-brand .brand-sub {
+    font-size: 0.58rem;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+    text-transform: uppercase;
+  }
+
+  /* App title (center-ish) */
+  .header-apptitle {
     flex-shrink: 0;
   }
-  .header-logo svg { opacity: .92; }
   header h1 {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
     color: #fff;
     white-space: nowrap;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
   }
   header h1 span { color: var(--accent); }
   header .header-sub {
-    font-size: 0.68rem;
-    color: rgba(255,255,255,0.55);
-    white-space: nowrap;
-  }
-  .header-aa2000 {
-    margin-left: auto;
     font-size: 0.62rem;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 0.06em;
+    color: rgba(255,255,255,0.4);
     white-space: nowrap;
-    text-transform: uppercase;
-    opacity: .85;
+    margin-top: 2px;
+    letter-spacing: 0.02em;
   }
+
+  /* Airport tag (right side) */
+  .header-airport {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+  .header-airport .iata {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    line-height: 1;
+  }
+  .header-airport .airport-name {
+    font-size: 0.56rem;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  /* legacy — keep for compat but hide */
+  .header-aa2000 { display: none; }
 
   /* ── Toolbar ─────────────────────────────────────────────── */
   .toolbar {
-    background: var(--bg-panel);
+    background: linear-gradient(90deg, #060D1C 0%, #070F1E 100%);
     padding: 5px 12px;
     display: flex;
     gap: 6px;
@@ -106,7 +175,7 @@
   }
   button:hover { opacity: .82; }
   button:disabled { opacity: .4; cursor: default; }
-  .btn-primary   { background: var(--accent); color: var(--primary); }
+  .btn-primary   { background: linear-gradient(135deg, var(--teal-start), var(--teal-end)); color: #fff; font-weight: 700; letter-spacing: 0.02em; }
   .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
   .btn-success   { background: var(--green); color: #fff; }
   .btn-warn      { background: var(--orange); color: var(--bg-body); }
@@ -129,7 +198,7 @@
   .lock-badge.green  { background: #27ae6022; border: 1px solid #27ae6055; color: var(--green); }
 
   /* ── App layout ──────────────────────────────────────────── */
-  .app { display: flex; height: calc(100vh - 94px); }
+  .app { display: flex; height: calc(100vh - 100px); }
 
   /* ── Map ─────────────────────────────────────────────────── */
   #map { flex: 1; position: relative; min-width: 0; }
@@ -176,7 +245,9 @@
   }
   .sidebar-toggle:hover { background: var(--primary-lt); color: var(--accent); }
   .sidebar {
-    width: 330px; background: var(--bg-panel); border-left: 1px solid var(--border);
+    width: 330px;
+    background: linear-gradient(180deg, #070F1E 0%, #060D1B 100%);
+    border-left: 1px solid var(--border);
     display: flex; flex-direction: column; overflow: hidden; transition: width .2s ease;
   }
   .sidebar.collapsed { width: 0; }
@@ -184,33 +255,102 @@
   /* Sheet handle — hidden on desktop */
   .sheet-handle { display: none; }
 
-  .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .tab {
-    flex: 1; padding: 10px; text-align: center; cursor: pointer;
-    font-size: 0.75rem; color: var(--text-muted); border-bottom: 2px solid transparent;
-    transition: all .2s; white-space: nowrap; min-height: 40px;
-    display: flex; align-items: center; justify-content: center;
+  .sidebar-tabs {
+    display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    background: rgba(2,11,28,0.6);
   }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab {
+    flex: 1; padding: 10px 4px; text-align: center; cursor: pointer;
+    font-size: 0.68rem; font-weight: 600; color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    transition: all .2s; white-space: nowrap; min-height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 3px; letter-spacing: 0.02em;
+  }
+  .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(0,200,180,0.06);
+  }
 
   .tab-content { display: none; flex: 1; overflow-y: auto; padding: 12px; }
   .tab-content.active { display: block; }
 
-  .legend h3 { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 1px; }
+  .legend h3 {
+    font-size: 0.62rem; font-weight: 700; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.09em;
+    background: linear-gradient(90deg, var(--teal-start), var(--teal-end));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
   .legend-item { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; font-size: 0.75rem; }
   .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
 
-  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
-  .stat-card { background: var(--bg-card); border-radius: 7px; padding: 9px; text-align: center; }
-  .stat-card .value { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
-  .stat-card .label { font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .stat-card {
+    background: #0D1E35;
+    border-radius: 12px; padding: 14px 10px 12px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.07);
+    position: relative; overflow: hidden;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .stat-card:hover { transform: translateY(-1px); }
+  .stat-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 12px 12px 0 0;
+  }
+  .stat-card::after {
+    content: ''; position: absolute;
+    inset: 0; border-radius: 12px;
+    opacity: 0.04;
+  }
+  /* Color por tipo */
+  .stat-total::before { background: linear-gradient(90deg,var(--teal-start),var(--teal-end)); }
+  .stat-total::after  { background: var(--teal-start); }
+  .stat-open::before  { background: var(--red); }
+  .stat-open::after   { background: var(--red); }
+  .stat-repair::before{ background: var(--orange); }
+  .stat-repair::after { background: var(--orange); }
+  .stat-closed::before{ background: var(--green); }
+  .stat-closed::after { background: var(--green); }
+
+  .stat-card .stat-icon {
+    font-size: 1.1rem; margin-bottom: 6px; display: block; line-height: 1;
+    position: relative; z-index: 1;
+  }
+  .stat-card .value {
+    font-size: 2rem; font-weight: 900; line-height: 1;
+    position: relative; z-index: 1;
+  }
+  .stat-total .value  { color: var(--accent); }
+  .stat-open .value   { color: var(--red); }
+  .stat-repair .value { color: var(--orange); }
+  .stat-closed .value { color: var(--green); }
+  .stat-card .label {
+    font-size: 0.6rem; font-weight: 700;
+    color: rgba(255,255,255,0.45);
+    margin-top: 5px; text-transform: uppercase;
+    letter-spacing: 0.08em;
+    position: relative; z-index: 1;
+  }
 
   .section-info { background: var(--bg-card); border-radius: 7px; padding: 10px; margin-bottom: 10px; display: none; }
   .section-info h3 { font-size: 0.85rem; color: var(--text); margin-bottom: 3px; }
   .section-info .count { font-size: 0.72rem; color: var(--text-muted); }
 
   .incident-list { display: flex; flex-direction: column; gap: 6px; }
-  .incident-card { background: var(--bg-card); border-radius: 6px; padding: 9px; border-left: 4px solid #555; }
+  .incident-card {
+    background: var(--bg-card); border-radius: 9px; padding: 11px;
+    border-left: 4px solid #555;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    border-right: 1px solid rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: box-shadow .2s;
+  }
+  .incident-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
   .incident-card.alta  { border-left-color: var(--red); }
   .incident-card.media { border-left-color: var(--orange); }
   .incident-card.baja  { border-left-color: var(--green); }
@@ -235,7 +375,7 @@
   .icon-btn.del:hover  { color: var(--red); background: #e74c3c15; }
 
   .all-list-item { background: var(--bg-card); border-radius: 5px; padding: 9px 10px; margin-bottom: 4px; font-size: 0.75rem; border-left: 3px solid #555; cursor: pointer; }
-  .all-list-item:hover { background: #1a3a6e; }
+  .all-list-item:hover { background: rgba(0,200,180,0.06); border-left-color: var(--accent); }
   .all-list-item.alta  { border-left-color: var(--red); }
   .all-list-item.media { border-left-color: var(--orange); }
   .all-list-item.baja  { border-left-color: var(--green); }
@@ -247,11 +387,19 @@
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.80); z-index: 1000; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
   .modal {
-    background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px;
-    padding: 20px; width: 430px; max-width: 95vw;
+    background: linear-gradient(160deg, #0A1628 0%, #060E1C 100%);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; width: 430px; max-width: 95vw;
     max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,200,180,0.08);
   }
-  .modal h2 { font-size: 0.9rem; color: var(--accent); margin-bottom: 13px; }
+  .modal h2 {
+    font-size: 0.88rem; font-weight: 800;
+    background: linear-gradient(90deg, var(--teal-start), var(--teal-end));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 14px; letter-spacing: 0.02em;
+  }
   .form-group { margin-bottom: 10px; }
   .form-group label { display: block; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 3px; }
   .form-group input, .form-group select, .form-group textarea {
@@ -314,6 +462,214 @@
     font-size: 2rem; cursor: pointer; opacity: .8; line-height: 1;
   }
   #photo-lightbox-close:hover { opacity: 1; }
+
+  /* ── Buscador de sectores ───────────────────────────────── */
+  .sector-search-wrap {
+    padding: 10px 12px 0;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .sector-search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 9px; padding: 7px 10px;
+    transition: border-color .15s;
+  }
+  .sector-search-box:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,200,180,0.12);
+  }
+  .sector-search-box .search-icon { font-size: 0.85rem; flex-shrink: 0; opacity: .6; }
+  .sector-search-box input {
+    flex: 1; background: none; border: none; outline: none;
+    color: var(--text); font-size: 0.8rem; font-family: inherit;
+    min-width: 0;
+  }
+  .sector-search-box input::placeholder { color: var(--text-muted); }
+  .sector-search-clear {
+    background: none; border: none; color: var(--text-muted);
+    font-size: 0.75rem; cursor: pointer; padding: 0 2px;
+    min-height: unset; line-height: 1; flex-shrink: 0;
+  }
+  .sector-search-clear:hover { color: var(--text); opacity: 1; }
+
+  .sector-search-results {
+    position: absolute; top: calc(100% + 2px); left: 12px; right: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    z-index: 600; max-height: 260px; overflow-y: auto;
+  }
+  .search-result-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 12px; cursor: pointer; font-size: 0.78rem;
+    transition: background .1s; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: rgba(0,200,180,0.08); }
+  .search-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .search-name { flex: 1; color: var(--text); }
+  .search-badge {
+    font-size: 0.62rem; font-weight: 700; color: #fff;
+    border-radius: 10px; padding: 1px 6px; flex-shrink: 0;
+  }
+  .search-no-results {
+    padding: 14px 12px; font-size: 0.75rem;
+    color: var(--text-muted); text-align: center;
+  }
+
+  /* ── Hilo de actualizaciones ────────────────────────────── */
+  .updates-toggle {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid var(--border);
+    cursor: pointer; font-size: 0.72rem;
+    color: var(--text-muted); user-select: none;
+  }
+  .updates-toggle:hover { color: var(--accent); }
+  .updates-toggle .upd-count {
+    background: var(--accent); color: #fff;
+    border-radius: 10px; padding: 0 6px;
+    font-size: 0.65rem; font-weight: 700; line-height: 1.6;
+  }
+  .updates-toggle .upd-arrow { margin-left: auto; transition: transform .2s; }
+  .updates-toggle.open .upd-arrow { transform: rotate(180deg); }
+
+  .updates-thread {
+    display: none; margin-top: 6px;
+    padding-left: 10px;
+    border-left: 2px solid var(--border);
+  }
+  .updates-thread.open { display: block; }
+
+  .upd-entry {
+    position: relative; padding: 7px 0 7px 10px;
+    font-size: 0.73rem; border-bottom: 1px solid var(--border);
+  }
+  .upd-entry:last-child { border-bottom: none; }
+  .upd-entry::before {
+    content: ''; position: absolute; left: -6px; top: 12px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg-card);
+  }
+  .upd-meta {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.67rem; color: var(--text-muted); margin-bottom: 3px;
+  }
+  .upd-author { font-weight: 700; color: var(--text); }
+  .upd-status-change {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 5px;
+    font-size: 0.63rem; font-weight: 600;
+  }
+  .upd-text { color: var(--text); line-height: 1.45; white-space: pre-wrap; }
+
+  .upd-input-area {
+    margin-top: 8px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .upd-input-area textarea {
+    width: 100%; box-sizing: border-box;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-size: 0.75rem; padding: 7px 9px;
+    resize: vertical; min-height: 52px; font-family: inherit;
+  }
+  .upd-input-area textarea:focus { outline: none; border-color: var(--accent); }
+  .upd-input-row {
+    display: flex; gap: 6px; align-items: center;
+  }
+  .upd-status-sel { display: none; } /* oculto — reemplazado por custom dropdown */
+
+  .upd-dd {
+    flex: 1; position: relative; font-size: 0.72rem; user-select: none;
+  }
+  .upd-dd-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 6px; padding: 6px 9px; border-radius: 6px; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text-muted);
+    font-size: 0.72rem; transition: border-color .15s;
+  }
+  .upd-dd-btn:hover { border-color: var(--accent); }
+  .upd-dd-btn.has-value { font-weight: 600; }
+  .upd-dd-arrow { font-size: 0.6rem; transition: transform .18s; flex-shrink: 0; }
+  .upd-dd.open .upd-dd-arrow { transform: rotate(180deg); }
+  .upd-dd-menu {
+    display: none; position: absolute; bottom: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,.35); z-index: 200;
+  }
+  .upd-dd.open .upd-dd-menu { display: block; }
+  .upd-dd-opt {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 11px; cursor: pointer; font-size: 0.73rem;
+    transition: background .12s;
+  }
+  .upd-dd-opt:hover { background: var(--bg); }
+  .upd-dd-opt.selected { background: var(--bg); font-weight: 700; }
+  .upd-dd-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .upd-submit-btn {
+    background: linear-gradient(135deg, var(--teal-start), var(--teal-end));
+    color: #fff; border: none; border-radius: 6px;
+    padding: 6px 12px; font-size: 0.73rem;
+    font-weight: 700; cursor: pointer; white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .upd-submit-btn:hover { opacity: .88; }
+  .upd-submit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── Análisis climático ─────────────────────────────────── */
+  .wx-section { margin-bottom: 14px; }
+  .wx-section-title {
+    font-size: 0.65rem; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 8px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .wx-kpi-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px;
+  }
+  .wx-kpi {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 10px 8px;
+    text-align: center;
+  }
+  .wx-kpi .wx-val {
+    font-size: 1.5rem; font-weight: 800; line-height: 1.1;
+  }
+  .wx-kpi .wx-lbl {
+    font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; line-height: 1.3;
+  }
+  .wx-bar-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px; font-size: 0.72rem;
+  }
+  .wx-bar-label { width: 110px; flex-shrink: 0; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wx-bar-track {
+    flex: 1; height: 10px; background: var(--bg);
+    border-radius: 5px; overflow: hidden;
+  }
+  .wx-bar-fill { height: 100%; border-radius: 5px; transition: width .4s; }
+  .wx-bar-count { width: 20px; text-align: right; flex-shrink: 0; color: var(--text-muted); font-size: 0.68rem; }
+  .wx-inc-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+  }
+  .wx-inc-row:last-child { border-bottom: none; }
+  .wx-weather-badge {
+    flex-shrink: 0; border-radius: 5px; padding: 2px 6px;
+    font-size: 0.63rem; font-weight: 700; white-space: nowrap;
+  }
+  .wx-note { font-size: 0.67rem; color: var(--text-muted); font-style: italic; margin-top: 6px; }
+
   /* Form section divider */
   .form-section-title {
     font-size: 0.65rem; font-weight: 700; color: var(--accent);
@@ -338,16 +694,28 @@
   /* ── Loading overlay ─────────────────────────────────────── */
   #loading-overlay {
     position: fixed; inset: 0; z-index: 2000;
-    background: var(--primary);
+    background: linear-gradient(135deg, #021B3E 0%, #031428 50%, #051020 100%);
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 16px; transition: opacity 0.4s ease;
+    gap: 18px; transition: opacity 0.4s ease;
   }
   #loading-overlay.fade-out { opacity: 0; pointer-events: none; }
-  #loading-overlay svg { animation: spin 1.2s linear infinite; }
+  #loading-overlay .ov-logo {
+    width: 56px; height: 56px; border-radius: 16px;
+    background: linear-gradient(135deg, #2DCFBE, #4B7FD6);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 40px rgba(45,207,190,0.35);
+    margin-bottom: 4px;
+  }
+  #loading-overlay .ov-spinner { animation: spin 1.2s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #loading-overlay p { color: rgba(255,255,255,0.7); font-size: 0.82rem; letter-spacing: 0.05em; }
-  #loading-overlay strong { color: var(--accent); font-size: 1rem; letter-spacing: 0.08em; }
+  #loading-overlay strong {
+    background: linear-gradient(90deg, #2DCFBE, #4B7FD6);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 0.95rem; letter-spacing: 0.1em; font-weight: 800;
+  }
+  #loading-overlay p { color: rgba(255,255,255,0.45); font-size: 0.75rem; letter-spacing: 0.06em; }
 
   /* ── FAB (mobile only) ───────────────────────────────────── */
   #fab {
@@ -439,12 +807,18 @@
   /* ── Mobile ──────────────────────────────────────────────── */
   @media (max-width: 768px) {
     header {
-      height: 46px;
+      height: 50px;
       padding: 0 12px;
+      gap: 10px;
     }
-    header h1 { font-size: 0.83rem; }
-    header .header-sub { display: none; }
-    .header-aa2000 { font-size: 0.55rem; letter-spacing: 0.03em; }
+    .header-logomark { width: 32px; height: 32px; border-radius: 8px; }
+    .header-logomark svg { width: 20px; height: 20px; }
+    .header-brand .brand-name { font-size: 0.68rem; }
+    .header-brand .brand-sub { display: none; }
+    .header-divider { display: none; }
+    .header-apptitle { display: none; }
+    .header-airport .iata { font-size: 0.9rem; }
+    .header-airport .airport-name { display: none; }
 
     /* Toolbar compacta: solo muestra controles esenciales */
     .toolbar {
@@ -461,7 +835,7 @@
 
     /* App: mapa ocupa todo el espacio disponible */
     .app {
-      height: calc(100dvh - 46px - 44px);
+      height: calc(100dvh - 50px - 44px);
       flex-direction: column;
       overflow: hidden;
     }
@@ -610,7 +984,7 @@
 
   @media (max-width: 400px) {
     header h1 { font-size: 0.75rem; }
-    .header-aa2000 { display: none; }
+    /* header-aa2000 ya es display:none globalmente */
     .hud-group button { width: 34px; height: 34px; }
   }
 </style>
@@ -619,26 +993,54 @@
 
 <!-- Loading overlay -->
 <div id="loading-overlay">
-  <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-    <circle cx="20" cy="20" r="17" stroke="rgba(255,255,255,0.2)" stroke-width="4"/>
-    <path d="M20 3 A17 17 0 0 1 37 20" stroke="#E8A000" stroke-width="4" stroke-linecap="round"/>
+  <div class="ov-logo">
+    <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
+      <ellipse cx="24" cy="30" rx="20" ry="6.5" stroke="white" stroke-width="3.5" fill="none"/>
+      <path d="M24 6 C16 6 11 12 11 19 C11 25 16.5 30.5 24 42 C31.5 30.5 37 25 37 19 C37 12 32 6 24 6Z" fill="white"/>
+      <circle cx="24" cy="19" r="6" fill="#2DCFBE"/>
+    </svg>
+  </div>
+  <svg class="ov-spinner" width="36" height="36" viewBox="0 0 36 36" fill="none">
+    <circle cx="18" cy="18" r="15" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+    <path d="M18 3 A15 15 0 0 1 33 18" stroke="url(#sg)" stroke-width="3" stroke-linecap="round"/>
+    <defs>
+      <linearGradient id="sg" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#2DCFBE"/>
+        <stop offset="100%" stop-color="#4B7FD6"/>
+      </linearGradient>
+    </defs>
   </svg>
   <strong>AEROPUERTOS ARGENTINA 2000</strong>
   <p>Conectando con base de datos…</p>
 </div>
 
 <header>
-  <div class="header-logo">
-    <!-- Airplane SVG icon -->
-    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M28 13.5L18 10V5a2 2 0 0 0-4 0v5L4 13.5v3l10-2.5v5l-3 2v2.5l5-1.5 5 1.5V21l-3-2v-5l10 2.5v-3z" fill="#E8A000"/>
-    </svg>
+  <!-- Logo AA2000 — guardá el archivo como "logo.png" en esta misma carpeta -->
+  <div class="header-logomark">
+    <img src="logo.png" alt="Aeropuertos Argentina 2000">
   </div>
-  <div>
+
+  <div class="header-divider"></div>
+
+  <!-- Brand -->
+  <div class="header-brand">
+    <div class="brand-name">Aeropuertos <span>Argentina</span></div>
+    <div class="brand-sub">2000 · Infraestructura</div>
+  </div>
+
+  <div class="header-divider"></div>
+
+  <!-- App title -->
+  <div class="header-apptitle">
     <h1>Monitoreo de <span>Techos</span></h1>
-    <div class="header-sub">Aeroparque Jorge Newbery · Sistema de incidencias</div>
+    <div class="header-sub">Sistema de incidencias · Techo terminal</div>
   </div>
-  <div class="header-aa2000">Aeropuertos Argentina 2000</div>
+
+  <!-- Airport code -->
+  <div class="header-airport">
+    <div class="iata">AEP</div>
+    <div class="airport-name">Aeroparque Jorge Newbery</div>
+  </div>
 </header>
 
 <div class="toolbar">
@@ -706,18 +1108,50 @@
     <div class="sidebar-toggle" id="sb-toggle" onclick="toggleSidebar()" title="Colapsar panel">▶</div>
     <div class="sidebar" id="sidebar">
       <div class="sheet-handle" onclick="toggleMobileSheet()"></div>
+
+      <!-- Buscador de sectores -->
+      <div class="sector-search-wrap">
+        <div class="sector-search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="sector-search-input"
+            placeholder="Buscar sector…"
+            oninput="onSectorSearch(this.value)"
+            autocomplete="off" spellcheck="false">
+          <button class="sector-search-clear" id="sector-search-clear"
+            onclick="clearSectorSearch()" style="display:none" title="Limpiar">✕</button>
+        </div>
+        <div class="sector-search-results" id="sector-search-results" style="display:none"></div>
+      </div>
+
       <div class="sidebar-tabs">
         <div class="tab active" onclick="showTab('overview')"><span class="tab-icon">📊</span>Resumen</div>
         <div class="tab" onclick="showTab('section')"><span class="tab-icon">📍</span>Sección</div>
         <div class="tab" onclick="showTab('all')"><span class="tab-icon">📋</span>Todas</div>
+        <div class="tab" onclick="showTab('weather')"><span class="tab-icon">🌦</span>Clima</div>
       </div>
 
       <div class="tab-content active" id="tab-overview">
         <div class="stats-grid">
-          <div class="stat-card"><div class="value" id="stat-total">0</div><div class="label">Total</div></div>
-          <div class="stat-card"><div class="value" id="stat-open" style="color:var(--red)">0</div><div class="label">Abiertas</div></div>
-          <div class="stat-card"><div class="value" id="stat-repair" style="color:var(--orange)">0</div><div class="label">Reparación</div></div>
-          <div class="stat-card"><div class="value" id="stat-closed" style="color:var(--green)">0</div><div class="label">Cerradas</div></div>
+          <div class="stat-card stat-total">
+            <span class="stat-icon">📋</span>
+            <div class="value" id="stat-total">0</div>
+            <div class="label">Total</div>
+          </div>
+          <div class="stat-card stat-open">
+            <span class="stat-icon">🔴</span>
+            <div class="value" id="stat-open">0</div>
+            <div class="label">Abiertas</div>
+          </div>
+          <div class="stat-card stat-repair">
+            <span class="stat-icon">🔧</span>
+            <div class="value" id="stat-repair">0</div>
+            <div class="label">Reparación</div>
+          </div>
+          <div class="stat-card stat-closed">
+            <span class="stat-icon">✅</span>
+            <div class="value" id="stat-closed">0</div>
+            <div class="label">Cerradas</div>
+          </div>
         </div>
         <div class="legend" style="margin-bottom:12px">
           <h3>Mapa de calor</h3>
@@ -764,6 +1198,12 @@
           <button class="filter-btn" onclick="setFilter('media',this)">Media</button>
         </div>
         <div id="all-incidents"></div>
+      </div>
+
+      <div class="tab-content" id="tab-weather">
+        <div id="weather-analysis-content">
+          <div class="empty" style="padding:24px 0">Cargando datos del clima…</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1477,6 +1917,7 @@ function renderSectionList(id) {
         </div>
         ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="openLightbox('${i.fotoUrl}')" title="Ver foto completa">` : ''}
       </div>
+      ${renderUpdatesThread(i)}
     </div>`).join('');
 }
 
@@ -1741,12 +2182,323 @@ function toggleActiveOnly() {
   btn.classList.toggle('on', showActiveOnly);
   redrawOverlay();
 }
+// ── Análisis Climático ─────────────────────────────────────────────────────────
+const WX_LAT = -34.5592, WX_LON = -58.4161; // Aeroparque Jorge Newbery
+let wxCache = null;
+let wxChartTimeline = null, wxChartDonut = null;
+
+function wxLabel(precip, wind) {
+  if (precip >= 15) return { icon: '⛈', label: 'Lluvia intensa',   color: '#3b82f6' };
+  if (precip >= 5)  return { icon: '🌧', label: 'Lluvia moderada',  color: '#60a5fa' };
+  if (precip >= 0.5) return { icon: '🌦', label: 'Lluvia leve',     color: '#93c5fd' };
+  if (wind  >= 40)  return { icon: '💨', label: 'Viento fuerte',    color: '#f59e0b' };
+  if (wind  >= 25)  return { icon: '🌬', label: 'Viento moderado',  color: '#fbbf24' };
+  return                    { icon: '☀',  label: 'Despejado / seco', color: '#22c55e' };
+}
+
+async function fetchWeatherForIncidents() {
+  if (!incidents.length) return null;
+  const dates = incidents.map(i => i.date?.slice(0,10)).filter(Boolean).sort();
+  const start = dates[0];
+  // Limitar end a hoy (Open-Meteo no da datos futuros)
+  const todayStr = new Date().toISOString().slice(0,10);
+  const end = dates[dates.length-1] > todayStr ? todayStr : dates[dates.length-1];
+  if (wxCache && wxCache.start === start && wxCache.end === end) return wxCache;
+  const url = `https://archive-api.open-meteo.com/v1/archive`
+    + `?latitude=${WX_LAT}&longitude=${WX_LON}`
+    + `&start_date=${start}&end_date=${end}`
+    + `&daily=precipitation_sum,wind_speed_10m_max`
+    + `&timezone=America%2FArgentina%2FBuenos_Aires`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const daily = {};
+  (json.daily?.time || []).forEach((d, idx) => {
+    daily[d] = {
+      precip: json.daily.precipitation_sum[idx] ?? 0,
+      wind:   json.daily.wind_speed_10m_max[idx]  ?? 0
+    };
+  });
+  wxCache = { start, end, daily };
+  return wxCache;
+}
+
+async function renderWeatherAnalysis() {
+  const el = document.getElementById('weather-analysis-content');
+  if (!el) return;
+  if (!incidents.length) {
+    el.innerHTML = '<div class="empty">No hay incidencias para analizar.</div>'; return;
+  }
+  el.innerHTML = '<div class="empty" style="padding:28px 0">🌐 Consultando datos históricos del clima…</div>';
+
+  // Destruir gráficos previos
+  if (wxChartTimeline) { wxChartTimeline.destroy(); wxChartTimeline = null; }
+  if (wxChartDonut)    { wxChartDonut.destroy();    wxChartDonut    = null; }
+
+  let wx;
+  try { wx = await fetchWeatherForIncidents(); }
+  catch(e) {
+    el.innerHTML = `<div class="empty" style="color:var(--red)">No se pudo obtener el clima.<br><small>${e.message}</small></div>`; return;
+  }
+
+  // Cruzar incidencias con clima
+  const enriched = incidents
+    .filter(i => i.date?.slice(0,10) <= wx.end)
+    .map(i => {
+      const d = i.date?.slice(0,10);
+      const w = wx.daily[d] || { precip:0, wind:0 };
+      return { ...i, _date:d, _precip:w.precip, _wind:w.wind, _wx: wxLabel(w.precip, w.wind) };
+    });
+
+  const total = enriched.length;
+  if (!total) { el.innerHTML = '<div class="empty">Sin datos suficientes.</div>'; return; }
+
+  const rainy   = enriched.filter(i => i._precip >= 0.5).length;
+  const windy   = enriched.filter(i => i._wind >= 25 && i._precip < 0.5).length;
+  const avgPrec = (enriched.reduce((s,i) => s + i._precip, 0) / total).toFixed(1);
+  const avgWind = (enriched.reduce((s,i) => s + i._wind,   0) / total).toFixed(1);
+  const maxPrec = Math.max(...enriched.map(i => i._precip));
+  const maxWind = Math.max(...enriched.map(i => i._wind));
+
+  // Distribución por categoría
+  const groups = {};
+  enriched.forEach(i => {
+    const k = i._wx.label;
+    if (!groups[k]) groups[k] = { ...i._wx, count:0 };
+    groups[k].count++;
+  });
+  const sortedGroups = Object.values(groups).sort((a,b) => b.count - a.count);
+  const maxG = sortedGroups[0]?.count || 1;
+
+  // Datos para gráfico timeline: agrupar por mes
+  const byMonth = {};
+  enriched.forEach(i => {
+    const m = i._date?.slice(0,7); // YYYY-MM
+    if (!byMonth[m]) byMonth[m] = { precip:0, wind:0, count:0, n:0 };
+    byMonth[m].precip += i._precip;
+    byMonth[m].wind   += i._wind;
+    byMonth[m].count  += 1;
+    byMonth[m].n      += 1;
+  });
+  // Promedio de clima por mes, suma de incidencias
+  const months = Object.keys(byMonth).sort();
+  const tlLabels = months.map(m => {
+    const [y,mo] = m.split('-');
+    return new Date(+y, +mo-1).toLocaleDateString('es-AR', {month:'short', year:'2-digit'});
+  });
+  const tlPrecip = months.map(m => +(byMonth[m].precip / byMonth[m].n).toFixed(1));
+  const tlWind   = months.map(m => +(byMonth[m].wind   / byMonth[m].n).toFixed(1));
+  const tlInc    = months.map(m => byMonth[m].count);
+
+  // Top 15 incidencias con más lluvia
+  const topRainy = [...enriched].sort((a,b) => b._precip - a._precip || b._wind - a._wind).slice(0,15);
+
+  // Conclusión
+  const rainyPct = Math.round(rainy*100/total);
+  const conclusion = rainyPct >= 50
+    ? `⚠ <b>${rainyPct}%</b> de las incidencias ocurrió en días con lluvia, lo que sugiere una <b>correlación significativa</b> entre la lluvia y los problemas del techo.`
+    : rainyPct >= 30
+    ? `🔍 <b>${rainyPct}%</b> de las incidencias coincidió con lluvia. Puede haber relación, pero también hay muchas en días secos.`
+    : `ℹ Solo el <b>${rainyPct}%</b> ocurrió en días lluviosos. Las incidencias no parecen estar fuertemente ligadas a la lluvia.`;
+
+  const CHART_DEFAULTS = {
+    color: '#94a3b8',
+    borderColor: '#334155',
+    font: { family: 'system-ui, sans-serif', size: 10 }
+  };
+
+  el.innerHTML = `
+    <div class="wx-section">
+      <div class="wx-section-title">🔍 Conclusión automática</div>
+      <div style="font-size:0.75rem;line-height:1.6;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">${conclusion}</div>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">📈 Indicadores clave</div>
+      <div class="wx-kpi-grid">
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#60a5fa">${rainyPct}%</div>
+          <div class="wx-lbl">incidencias<br>con lluvia</div>
+        </div>
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#f59e0b">${Math.round((rainy+windy)*100/total)}%</div>
+          <div class="wx-lbl">con lluvia o<br>viento fuerte</div>
+        </div>
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#60a5fa">${avgPrec} mm</div>
+          <div class="wx-lbl">precipitación<br>promedio</div>
+        </div>
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#f59e0b">${avgWind} km/h</div>
+          <div class="wx-lbl">viento<br>promedio</div>
+        </div>
+      </div>
+      <div style="font-size:0.67rem;color:var(--text-muted);margin-top:4px">
+        Máximos registrados: ${maxPrec.toFixed(1)} mm · ${maxWind.toFixed(0)} km/h
+      </div>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">📊 Lluvia, viento e incidencias por mes</div>
+      <div style="position:relative;height:190px">
+        <canvas id="wx-chart-timeline"></canvas>
+      </div>
+      <p class="wx-note">Barras: precipitación prom. (mm) · Línea azul: viento prom. (km/h) · Puntos rojos: incidencias</p>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">🍩 Distribución por condición climática</div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="position:relative;width:130px;height:130px;flex-shrink:0">
+          <canvas id="wx-chart-donut"></canvas>
+        </div>
+        <div style="flex:1">
+          ${sortedGroups.map(g => `
+            <div class="wx-bar-row">
+              <span class="wx-bar-label">${g.icon} ${g.label}</span>
+              <div class="wx-bar-track">
+                <div class="wx-bar-fill" style="width:${Math.round(g.count*100/maxG)}%;background:${g.color}"></div>
+              </div>
+              <span class="wx-bar-count">${g.count}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <p class="wx-note">Fuente: Open-Meteo · AEP (${wx.start} → ${wx.end}) · ${total} incidencias analizadas</p>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">🗓 Incidencias con mayor lluvia / viento</div>
+      ${topRainy.map(i => `
+        <div class="wx-inc-row">
+          <span class="wx-weather-badge" style="background:${i._wx.color}22;color:${i._wx.color};border:1px solid ${i._wx.color}55">
+            ${i._wx.icon} ${i._precip.toFixed(1)}mm · ${i._wind.toFixed(0)}km/h
+          </span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(i.desc)}</div>
+            <div style="color:var(--text-muted);font-size:0.67rem">${formatDate(i.date)} · ${escHtml(getSectorName(i.cell))}</div>
+          </div>
+          <span class="badge ${i.status}" style="flex-shrink:0;font-size:0.6rem">${statusLabel(i.status)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  // ── Chart 1: Timeline combo ───────────────────────────────
+  const ctxT = document.getElementById('wx-chart-timeline')?.getContext('2d');
+  if (ctxT && months.length) {
+    wxChartTimeline = new Chart(ctxT, {
+      data: {
+        labels: tlLabels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Lluvia prom. (mm)',
+            data: tlPrecip,
+            backgroundColor: '#3b82f688',
+            borderColor: '#3b82f6',
+            borderWidth: 1,
+            borderRadius: 3,
+            yAxisID: 'yPrecip',
+            order: 2
+          },
+          {
+            type: 'line',
+            label: 'Viento prom. (km/h)',
+            data: tlWind,
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#f59e0b',
+            tension: 0.35,
+            yAxisID: 'yWind',
+            order: 1
+          },
+          {
+            type: 'line',
+            label: 'Incidencias',
+            data: tlInc,
+            borderColor: '#ef4444',
+            backgroundColor: '#ef444422',
+            borderWidth: 2,
+            pointRadius: 5,
+            pointBackgroundColor: '#ef4444',
+            tension: 0.2,
+            fill: true,
+            yAxisID: 'yInc',
+            order: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12, padding: 10 } },
+          tooltip: {
+            backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
+            titleColor: '#e2e8f0', bodyColor: '#94a3b8'
+          }
+        },
+        scales: {
+          x: { ticks: { color:'#64748b', font:{size:9} }, grid: { color:'#1e293b' } },
+          yPrecip: {
+            type: 'linear', position: 'left',
+            ticks: { color:'#60a5fa', font:{size:9} },
+            grid: { color:'#1e293b' },
+            title: { display:true, text:'mm', color:'#60a5fa', font:{size:9} }
+          },
+          yWind: {
+            type: 'linear', position: 'right',
+            ticks: { color:'#f59e0b', font:{size:9} },
+            grid: { drawOnChartArea: false },
+            title: { display:true, text:'km/h', color:'#f59e0b', font:{size:9} }
+          },
+          yInc: {
+            type: 'linear', position: 'right',
+            ticks: { color:'#ef4444', font:{size:9}, stepSize:1 },
+            grid: { drawOnChartArea: false },
+            title: { display:true, text:'inc.', color:'#ef4444', font:{size:9} }
+          }
+        }
+      }
+    });
+  }
+
+  // ── Chart 2: Donut distribución ───────────────────────────
+  const ctxD = document.getElementById('wx-chart-donut')?.getContext('2d');
+  if (ctxD && sortedGroups.length) {
+    wxChartDonut = new Chart(ctxD, {
+      type: 'doughnut',
+      data: {
+        labels: sortedGroups.map(g => g.icon + ' ' + g.label),
+        datasets: [{
+          data: sortedGroups.map(g => g.count),
+          backgroundColor: sortedGroups.map(g => g.color + 'cc'),
+          borderColor: sortedGroups.map(g => g.color),
+          borderWidth: 1.5
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b', borderColor: '#334155', borderWidth: 1,
+            titleColor: '#e2e8f0', bodyColor: '#94a3b8'
+          }
+        }
+      }
+    });
+  }
+}
+
 function showTab(name) {
-  const names = ['overview','section','all'];
+  const names = ['overview','section','all','weather'];
   document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === name));
   document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  if (name === 'all') renderAllList();
+  if (name === 'all')     renderAllList();
+  if (name === 'weather') renderWeatherAnalysis();
   if (isMobile()) setSheetState('expanded');
 }
 function setFilter(f, btn) {
@@ -1767,6 +2519,208 @@ function exportCSV() {
   a.download = `incidencias_techo_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
+// ── Actualizaciones / retroalimentación ───────────────────────────────────────
+
+function getUserName() {
+  let name = localStorage.getItem('upd_author');
+  if (!name) {
+    name = prompt('¿Tu nombre para las actualizaciones?', '');
+    if (!name || !name.trim()) name = 'Anónimo';
+    localStorage.setItem('upd_author', name.trim());
+  }
+  return name.trim();
+}
+
+// ── Buscador de sectores ──────────────────────────────────────────────────────
+function onSectorSearch(q) {
+  q = (q || '').trim().toLowerCase();
+  const resultsEl = document.getElementById('sector-search-results');
+  const clearBtn  = document.getElementById('sector-search-clear');
+
+  clearBtn.style.display = q ? '' : 'none';
+
+  if (!q) { resultsEl.style.display = 'none'; return; }
+
+  const matches = SECTOR_DEFS.filter(d =>
+    d.name.toLowerCase().includes(q) ||
+    d.short.toLowerCase().includes(q) ||
+    d.id.toLowerCase().includes(q)
+  );
+
+  if (!matches.length) {
+    resultsEl.innerHTML = '<div class="search-no-results">Sin resultados para "<b>' + q + '</b>"</div>';
+    resultsEl.style.display = '';
+    return;
+  }
+
+  resultsEl.innerHTML = matches.map(d => {
+    const total  = sectorIncidents(d.id).length;
+    const active = incidents.filter(i => i.cell === d.id &&
+      (i.status === 'abierta' || i.status === 'en_reparacion')).length;
+    const badge = total
+      ? `<span class="search-badge" style="background:${active ? '#e74c3c' : '#475569'}">${total}</span>`
+      : '';
+    return `<div class="search-result-item" onclick="selectSearchResult('${d.id}')">
+      <span class="search-dot" style="background:${d.color}"></span>
+      <span class="search-name">${escHtml(d.name)}</span>
+      ${badge}
+    </div>`;
+  }).join('');
+
+  resultsEl.style.display = '';
+}
+
+function selectSearchResult(id) {
+  jumpToSector(id);
+  clearSectorSearch();
+}
+
+function clearSectorSearch() {
+  const input = document.getElementById('sector-search-input');
+  if (input) input.value = '';
+  document.getElementById('sector-search-results').style.display = 'none';
+  document.getElementById('sector-search-clear').style.display = 'none';
+}
+
+// Cerrar resultados al hacer clic fuera del buscador
+document.addEventListener('click', e => {
+  if (!e.target.closest('.sector-search-wrap')) {
+    const r = document.getElementById('sector-search-results');
+    if (r) r.style.display = 'none';
+  }
+});
+
+function toggleUpdDd(incId) {
+  const dd = document.getElementById(`upd-dd-${incId}`);
+  if (!dd) return;
+  const isOpen = dd.classList.toggle('open');
+  if (isOpen) {
+    // cerrar otros dropdowns abiertos
+    document.querySelectorAll('.upd-dd.open').forEach(el => {
+      if (el !== dd) el.classList.remove('open');
+    });
+  }
+}
+
+function selectUpdStatus(incId, value, label, color) {
+  document.getElementById(`upd-status-${incId}`).value = value;
+  const lbl = document.getElementById(`upd-dd-label-${incId}`);
+  lbl.textContent = label;
+  lbl.style.color = value ? color : '';
+  const btn = document.getElementById(`upd-dd-${incId}`)?.querySelector('.upd-dd-btn');
+  if (btn) btn.classList.toggle('has-value', !!value);
+  document.getElementById(`upd-dd-${incId}`)?.classList.remove('open');
+}
+
+// Cerrar dropdowns al hacer clic afuera
+document.addEventListener('click', e => {
+  if (!e.target.closest('.upd-dd')) {
+    document.querySelectorAll('.upd-dd.open').forEach(el => el.classList.remove('open'));
+  }
+});
+
+function toggleUpdates(incId) {
+  const toggle = document.getElementById(`upd-toggle-${incId}`);
+  const thread  = document.getElementById(`upd-thread-${incId}`);
+  if (!toggle || !thread) return;
+  const isOpen = thread.classList.toggle('open');
+  toggle.classList.toggle('open', isOpen);
+}
+
+async function submitUpdate(incId) {
+  const textarea = document.getElementById(`upd-text-${incId}`);
+  const statusSel = document.getElementById(`upd-status-${incId}`);
+  const btn = document.getElementById(`upd-btn-${incId}`);
+  const text = (textarea?.value || '').trim();
+  if (!text) { textarea?.focus(); return; }
+
+  const author = getUserName();
+  const newStatus = statusSel?.value || '';
+  const entry = { author, text, date: new Date().toISOString() };
+  if (newStatus) entry.newStatus = newStatus;
+
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const updateData = { updates: firebase.firestore.FieldValue.arrayUnion(entry) };
+    if (newStatus) updateData.status = newStatus;
+    await db.collection(COL_INC).doc(incId).update(updateData);
+    textarea.value = '';
+    if (statusSel) statusSel.value = '';
+  } catch(e) {
+    console.error(e);
+    alert('Error al guardar la actualización.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Agregar';
+  }
+}
+
+function renderUpdatesThread(inc) {
+  const updates = inc.updates || [];
+  const count = updates.length;
+  const label = count === 0 ? 'Agregar actualización'
+              : count === 1 ? '1 actualización'
+              : `${count} actualizaciones`;
+  const countBadge = count ? `<span class="upd-count">${count}</span>` : '';
+
+  const entries = updates.map(u => {
+    const statusChange = u.newStatus
+      ? `<span class="upd-status-change">${statusLabel(u.newStatus)}</span>`
+      : '';
+    const d = new Date(u.date);
+    const dateStr = d.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'})
+                  + ' ' + d.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+    return `<div class="upd-entry">
+      <div class="upd-meta">
+        <span class="upd-author">${escHtml(u.author)}</span>
+        <span>${dateStr}</span>
+        ${statusChange}
+      </div>
+      <div class="upd-text">${escHtml(u.text)}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="updates-toggle" id="upd-toggle-${inc.id}" onclick="toggleUpdates('${inc.id}')">
+      💬 ${label} ${countBadge}
+      <span class="upd-arrow">▾</span>
+    </div>
+    <div class="updates-thread" id="upd-thread-${inc.id}">
+      ${entries}
+      <div class="upd-input-area">
+        <textarea id="upd-text-${inc.id}" placeholder="Escribí una actualización, comentario o resolución…"
+          onkeydown="if(event.ctrlKey&&event.key==='Enter')submitUpdate('${inc.id}')"></textarea>
+        <div class="upd-input-row">
+          <input type="hidden" id="upd-status-${inc.id}" value="">
+          <div class="upd-dd" id="upd-dd-${inc.id}">
+            <div class="upd-dd-btn" onclick="toggleUpdDd('${inc.id}')">
+              <span id="upd-dd-label-${inc.id}">— Sin cambio de estado —</span>
+              <span class="upd-dd-arrow">▾</span>
+            </div>
+            <div class="upd-dd-menu">
+              <div class="upd-dd-opt" onclick="selectUpdStatus('${inc.id}','','— Sin cambio de estado —','#64748b')">
+                <span class="upd-dd-dot" style="background:#64748b"></span>
+                <span style="color:var(--text-muted)">Sin cambio de estado</span>
+              </div>
+              <div class="upd-dd-opt" onclick="selectUpdStatus('${inc.id}','abierta','🔴 Abierta','#e74c3c')">
+                <span class="upd-dd-dot" style="background:#e74c3c"></span>
+                <span style="color:#e74c3c;font-weight:600">Abierta</span>
+              </div>
+              <div class="upd-dd-opt" onclick="selectUpdStatus('${inc.id}','en_reparacion','🟠 En reparación','#f39c12')">
+                <span class="upd-dd-dot" style="background:#f39c12"></span>
+                <span style="color:#f39c12;font-weight:600">En reparación</span>
+              </div>
+              <div class="upd-dd-opt" onclick="selectUpdStatus('${inc.id}','cerrada','✅ Cerrada / Resuelta','#27ae60')">
+                <span class="upd-dd-dot" style="background:#27ae60"></span>
+                <span style="color:#27ae60;font-weight:600">Cerrada / Resuelta</span>
+              </div>
+            </div>
+          </div>
+          <button class="upd-submit-btn" id="upd-btn-${inc.id}" onclick="submitUpdate('${inc.id}')">Agregar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 async function uploadToCloudinary(file) {
   const formData = new FormData();
   formData.append('file', file);
