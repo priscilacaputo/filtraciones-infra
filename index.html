@@ -2196,18 +2196,30 @@ function wxLabel(precip, wind) {
   return                    { icon: '☀',  label: 'Despejado / seco', color: '#22c55e' };
 }
 
+function windDirLabel(deg) {
+  if (deg == null || isNaN(deg)) return '—';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function windDirArrow(deg) {
+  // Devuelve un SVG de flecha rotada indicando hacia dónde sopla el viento
+  return `<svg width="14" height="14" viewBox="0 0 14 14" style="transform:rotate(${deg}deg);display:inline-block;vertical-align:middle">
+    <polygon points="7,1 10,11 7,9 4,11" fill="currentColor"/>
+  </svg>`;
+}
+
 async function fetchWeatherForIncidents() {
   if (!incidents.length) return null;
   const dates = incidents.map(i => i.date?.slice(0,10)).filter(Boolean).sort();
   const start = dates[0];
-  // Limitar end a hoy (Open-Meteo no da datos futuros)
   const todayStr = new Date().toISOString().slice(0,10);
   const end = dates[dates.length-1] > todayStr ? todayStr : dates[dates.length-1];
   if (wxCache && wxCache.start === start && wxCache.end === end) return wxCache;
   const url = `https://archive-api.open-meteo.com/v1/archive`
     + `?latitude=${WX_LAT}&longitude=${WX_LON}`
     + `&start_date=${start}&end_date=${end}`
-    + `&daily=precipitation_sum,wind_speed_10m_max`
+    + `&daily=precipitation_sum,wind_speed_10m_max,wind_direction_10m_dominant`
     + `&timezone=America%2FArgentina%2FBuenos_Aires`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2215,8 +2227,9 @@ async function fetchWeatherForIncidents() {
   const daily = {};
   (json.daily?.time || []).forEach((d, idx) => {
     daily[d] = {
-      precip: json.daily.precipitation_sum[idx] ?? 0,
-      wind:   json.daily.wind_speed_10m_max[idx]  ?? 0
+      precip:  json.daily.precipitation_sum[idx]           ?? 0,
+      wind:    json.daily.wind_speed_10m_max[idx]           ?? 0,
+      windDir: json.daily.wind_direction_10m_dominant[idx]  ?? null
     };
   });
   wxCache = { start, end, daily };
@@ -2246,8 +2259,8 @@ async function renderWeatherAnalysis() {
     .filter(i => i.date?.slice(0,10) <= wx.end)
     .map(i => {
       const d = i.date?.slice(0,10);
-      const w = wx.daily[d] || { precip:0, wind:0 };
-      return { ...i, _date:d, _precip:w.precip, _wind:w.wind, _wx: wxLabel(w.precip, w.wind) };
+      const w = wx.daily[d] || { precip:0, wind:0, windDir:null };
+      return { ...i, _date:d, _precip:w.precip, _wind:w.wind, _windDir:w.windDir, _wx: wxLabel(w.precip, w.wind) };
     });
 
   const total = enriched.length;
@@ -2260,7 +2273,25 @@ async function renderWeatherAnalysis() {
   const maxPrec = Math.max(...enriched.map(i => i._precip));
   const maxWind = Math.max(...enriched.map(i => i._wind));
 
-  // Distribución por categoría
+  // ── Dirección del viento ──────────────────────────────────
+  // Agrupamos en 8 sectores (N, NE, E, SE, S, SW, W, NW)
+  const DIR8 = ['N','NE','E','SE','S','SO','O','NO'];
+  const dirCount = Object.fromEntries(DIR8.map(d => [d, 0]));
+  const dirWindSum = Object.fromEntries(DIR8.map(d => [d, 0]));
+  enriched.forEach(i => {
+    if (i._windDir == null) return;
+    const idx = Math.round(i._windDir / 45) % 8;
+    const key = DIR8[idx];
+    dirCount[key]++;
+    dirWindSum[key] += i._wind;
+  });
+  const maxDirCount = Math.max(...Object.values(dirCount), 1);
+  const dominantDir = DIR8.reduce((a, b) => dirCount[a] >= dirCount[b] ? a : b);
+  const dominantDirCount = dirCount[dominantDir];
+  const dominantDirAvgWind = dominantDirCount > 0
+    ? (dirWindSum[dominantDir] / dominantDirCount).toFixed(0) : 0;
+
+  // Distribución por categoría de clima
   const groups = {};
   enriched.forEach(i => {
     const k = i._wx.label;
@@ -2273,14 +2304,13 @@ async function renderWeatherAnalysis() {
   // Datos para gráfico timeline: agrupar por mes
   const byMonth = {};
   enriched.forEach(i => {
-    const m = i._date?.slice(0,7); // YYYY-MM
+    const m = i._date?.slice(0,7);
     if (!byMonth[m]) byMonth[m] = { precip:0, wind:0, count:0, n:0 };
     byMonth[m].precip += i._precip;
     byMonth[m].wind   += i._wind;
     byMonth[m].count  += 1;
     byMonth[m].n      += 1;
   });
-  // Promedio de clima por mes, suma de incidencias
   const months = Object.keys(byMonth).sort();
   const tlLabels = months.map(m => {
     const [y,mo] = m.split('-');
@@ -2290,7 +2320,7 @@ async function renderWeatherAnalysis() {
   const tlWind   = months.map(m => +(byMonth[m].wind   / byMonth[m].n).toFixed(1));
   const tlInc    = months.map(m => byMonth[m].count);
 
-  // Top 15 incidencias con más lluvia
+  // Top 15 incidencias con más lluvia/viento
   const topRainy = [...enriched].sort((a,b) => b._precip - a._precip || b._wind - a._wind).slice(0,15);
 
   // Conclusión
@@ -2301,16 +2331,63 @@ async function renderWeatherAnalysis() {
     ? `🔍 <b>${rainyPct}%</b> de las incidencias coincidió con lluvia. Puede haber relación, pero también hay muchas en días secos.`
     : `ℹ Solo el <b>${rainyPct}%</b> ocurrió en días lluviosos. Las incidencias no parecen estar fuertemente ligadas a la lluvia.`;
 
-  const CHART_DEFAULTS = {
-    color: '#94a3b8',
-    borderColor: '#334155',
-    font: { family: 'system-ui, sans-serif', size: 10 }
-  };
+  // ── SVG Rosa de los Vientos ───────────────────────────────
+  function buildWindRose() {
+    const cx = 90, cy = 90, r = 68, rMin = 10;
+    // Anillos de referencia
+    const rings = [0.25, 0.5, 0.75, 1].map(f => {
+      const rr = rMin + (r - rMin) * f;
+      return `<circle cx="${cx}" cy="${cy}" r="${rr}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>`;
+    }).join('');
+    // Líneas de ejes
+    const axes = DIR8.map((_, i) => {
+      const ang = (i * 45 - 90) * Math.PI / 180;
+      return `<line x1="${cx}" y1="${cy}" x2="${cx + r*Math.cos(ang)}" y2="${cy + r*Math.sin(ang)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`;
+    }).join('');
+    // Barras de cada dirección
+    const bars = DIR8.map((dir, i) => {
+      const ang = (i * 45 - 90) * Math.PI / 180;
+      const frac = dirCount[dir] / maxDirCount;
+      const barR = rMin + (r - rMin) * frac;
+      const w = 14; // ancho de la barra en grados
+      const a1 = ang - (w/2) * Math.PI/180;
+      const a2 = ang + (w/2) * Math.PI/180;
+      const isDominant = dir === dominantDir;
+      const color = isDominant ? '#00C8B4' : '#4B7FD6';
+      const alpha = isDominant ? 'cc' : '88';
+      if (frac === 0) return '';
+      // Arco
+      const x1 = cx + rMin*Math.cos(a1), y1 = cy + rMin*Math.sin(a1);
+      const x2 = cx + barR*Math.cos(a1), y2 = cy + barR*Math.sin(a1);
+      const x3 = cx + barR*Math.cos(a2), y3 = cy + barR*Math.sin(a2);
+      const x4 = cx + rMin*Math.cos(a2), y4 = cy + rMin*Math.sin(a2);
+      return `<path d="M${x1},${y1} L${x2},${y2} A${barR},${barR} 0 0,1 ${x3},${y3} L${x4},${y4} A${rMin},${rMin} 0 0,0 ${x1},${y1}Z"
+        fill="${color}${alpha}" stroke="${color}" stroke-width="1"/>`;
+    }).join('');
+    // Etiquetas
+    const labels = DIR8.map((dir, i) => {
+      const ang = (i * 45 - 90) * Math.PI / 180;
+      const lr = r + 13;
+      const x = cx + lr * Math.cos(ang);
+      const y = cy + lr * Math.sin(ang);
+      const isBold = dir === dominantDir;
+      return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle"
+        font-size="${isBold ? 9 : 8}" font-weight="${isBold ? 700 : 400}"
+        fill="${isBold ? '#00C8B4' : 'rgba(255,255,255,0.5)'}">${dir}</text>`;
+    }).join('');
+    // Valores en el centro
+    const centerText = `
+      <text x="${cx}" y="${cy-7}" text-anchor="middle" font-size="11" font-weight="800" fill="#00C8B4">${dominantDir}</text>
+      <text x="${cx}" y="${cy+7}" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.45)">${dominantDirAvgWind} km/h</text>`;
+    return `<svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+      ${rings}${axes}${bars}${labels}${centerText}
+    </svg>`;
+  }
 
   el.innerHTML = `
     <div class="wx-section">
       <div class="wx-section-title">🔍 Conclusión automática</div>
-      <div style="font-size:0.75rem;line-height:1.6;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">${conclusion}</div>
+      <div style="font-size:0.75rem;line-height:1.6;padding:8px 10px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border)">${conclusion}</div>
     </div>
 
     <div class="wx-section">
@@ -2322,7 +2399,7 @@ async function renderWeatherAnalysis() {
         </div>
         <div class="wx-kpi">
           <div class="wx-val" style="color:#f59e0b">${Math.round((rainy+windy)*100/total)}%</div>
-          <div class="wx-lbl">con lluvia o<br>viento fuerte</div>
+          <div class="wx-lbl">lluvia o<br>viento fuerte</div>
         </div>
         <div class="wx-kpi">
           <div class="wx-val" style="color:#60a5fa">${avgPrec} mm</div>
@@ -2339,11 +2416,36 @@ async function renderWeatherAnalysis() {
     </div>
 
     <div class="wx-section">
+      <div class="wx-section-title">🧭 Dirección del viento en días de incidencia</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="flex-shrink:0">${buildWindRose()}</div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--accent);margin-bottom:10px">
+            Dirección dominante: <span style="font-size:1.1rem">${dominantDir}</span>
+          </div>
+          ${DIR8.filter(d => dirCount[d] > 0).sort((a,b) => dirCount[b]-dirCount[a]).map(d => {
+            const pct = Math.round(dirCount[d]*100/total);
+            const avgW = dirCount[d] > 0 ? (dirWindSum[d]/dirCount[d]).toFixed(0) : 0;
+            const isMain = d === dominantDir;
+            return `<div class="wx-bar-row" style="margin-bottom:5px">
+              <span class="wx-bar-label" style="width:30px;font-weight:${isMain?700:400};color:${isMain?'var(--accent)':'var(--text-muted)'}">${d}</span>
+              <div class="wx-bar-track">
+                <div class="wx-bar-fill" style="width:${Math.round(dirCount[d]*100/maxDirCount)}%;background:${isMain?'var(--accent)':'#4B7FD6'}"></div>
+              </div>
+              <span class="wx-bar-count" style="width:50px;text-align:right;font-size:0.66rem;color:var(--text-muted)">${dirCount[d]} (${avgW}km/h)</span>
+            </div>`;
+          }).join('')}
+          <p class="wx-note" style="margin-top:8px">Dirección del viento de donde <b>proviene</b>.<br>Teal = predominante</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="wx-section">
       <div class="wx-section-title">📊 Lluvia, viento e incidencias por mes</div>
       <div style="position:relative;height:190px">
         <canvas id="wx-chart-timeline"></canvas>
       </div>
-      <p class="wx-note">Barras: precipitación prom. (mm) · Línea azul: viento prom. (km/h) · Puntos rojos: incidencias</p>
+      <p class="wx-note">Barras: precipitación prom. (mm) · Línea naranja: viento (km/h) · Puntos rojos: incidencias</p>
     </div>
 
     <div class="wx-section">
@@ -2368,17 +2470,26 @@ async function renderWeatherAnalysis() {
 
     <div class="wx-section">
       <div class="wx-section-title">🗓 Incidencias con mayor lluvia / viento</div>
-      ${topRainy.map(i => `
-        <div class="wx-inc-row">
-          <span class="wx-weather-badge" style="background:${i._wx.color}22;color:${i._wx.color};border:1px solid ${i._wx.color}55">
-            ${i._wx.icon} ${i._precip.toFixed(1)}mm · ${i._wind.toFixed(0)}km/h
+      ${topRainy.map(i => {
+        const dirLabel = i._windDir != null ? windDirLabel(i._windDir) : '—';
+        const dirDeg   = i._windDir != null ? i._windDir : 0;
+        return `<div class="wx-inc-row">
+          <span class="wx-weather-badge" style="background:${i._wx.color}22;color:${i._wx.color};border:1px solid ${i._wx.color}55;flex-shrink:0">
+            ${i._wx.icon} ${i._precip.toFixed(1)}mm
           </span>
           <div style="flex:1;min-width:0">
             <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(i.desc)}</div>
-            <div style="color:var(--text-muted);font-size:0.67rem">${formatDate(i.date)} · ${escHtml(getSectorName(i.cell))}</div>
+            <div style="color:var(--text-muted);font-size:0.67rem;margin-top:2px">
+              📅 ${formatDate(i.date)} · 📍 ${escHtml(getSectorName(i.cell))}
+            </div>
+            <div style="font-size:0.67rem;margin-top:2px;display:flex;gap:8px">
+              <span style="color:#f59e0b">💨 ${i._wind.toFixed(0)} km/h</span>
+              <span style="color:var(--accent)">${windDirArrow(dirDeg)} ${dirLabel}</span>
+            </div>
           </div>
           <span class="badge ${i.status}" style="flex-shrink:0;font-size:0.6rem">${statusLabel(i.status)}</span>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
 
   // ── Chart 1: Timeline combo ───────────────────────────────
