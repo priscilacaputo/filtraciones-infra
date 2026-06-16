@@ -10,7 +10,7 @@
 <!-- Firebase compat SDK (no bundler needed) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<!-- Firebase Storage removido — fotos se suben a Cloudinary -->
 <style>
   :root {
     --primary:    #00205B;
@@ -289,9 +289,31 @@
     color: var(--text-muted); background: var(--bg-card);
   }
   .photo-thumb {
-    width: 60px; height: 42px; object-fit: cover; border-radius: 4px;
-    border: 1px solid var(--border); cursor: pointer; vertical-align: middle;
+    width: 80px; height: 60px; object-fit: cover; border-radius: 6px;
+    border: 2px solid var(--border); cursor: zoom-in; vertical-align: middle;
+    transition: border-color .15s, transform .15s;
+    flex-shrink: 0;
   }
+  .photo-thumb:hover { border-color: var(--accent); transform: scale(1.04); }
+
+  /* ── Lightbox ──────────────────────────────────────────────── */
+  #photo-lightbox {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.92); align-items: center; justify-content: center;
+    cursor: zoom-out;
+  }
+  #photo-lightbox.open { display: flex; }
+  #photo-lightbox img {
+    max-width: 96vw; max-height: 92vh; border-radius: 8px;
+    object-fit: contain; box-shadow: 0 8px 40px rgba(0,0,0,.6);
+    cursor: default;
+  }
+  #photo-lightbox-close {
+    position: absolute; top: 16px; right: 20px;
+    background: none; border: none; color: #fff;
+    font-size: 2rem; cursor: pointer; opacity: .8; line-height: 1;
+  }
+  #photo-lightbox-close:hover { opacity: 1; }
   /* Form section divider */
   .form-section-title {
     font-size: 0.65rem; font-weight: 700; color: var(--accent);
@@ -750,6 +772,12 @@
 <!-- FAB (mobile quick-add) -->
 <button id="fab" onclick="fabAction()" title="Nueva incidencia">+</button>
 
+<!-- Lightbox de fotos -->
+<div id="photo-lightbox" onclick="closeLightbox()">
+  <button id="photo-lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="photo-lightbox-img" src="" alt="foto incidencia" onclick="event.stopPropagation()">
+</div>
+
 <!-- Modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
@@ -763,8 +791,8 @@
         <input type="datetime-local" id="f-date">
       </div>
       <div class="form-group">
-        <label>🏢 Edificio</label>
-        <input type="text" id="f-edificio" placeholder="Ej: Terminal, Muelle A…">
+        <label>🏢 Sector</label>
+        <input type="text" id="f-edificio" placeholder="Ej: Sala 6-7, Puente 01-02…">
       </div>
     </div>
 
@@ -848,8 +876,11 @@ const firebaseConfig = {
   appId:             "1:150969436616:web:a9db26d80ec0f25c1818fd"
 };
 firebase.initializeApp(firebaseConfig);
-const db      = firebase.firestore();
-const storage = firebase.storage();
+const db = firebase.firestore();
+
+// Cloudinary — reemplazá estos valores con los tuyos
+const CLOUDINARY_CLOUD  = 'duiejvbdg';
+const CLOUDINARY_PRESET = 'techos_infra';
 
 // Colecciones Firestore
 const COL_INC = 'incidents';
@@ -1444,7 +1475,7 @@ function renderSectionList(id) {
           ${(i.fuente || i.guardia) ? `<div class="inc-meta">${i.fuente ? '👤 '+escHtml(i.fuente) : ''}${i.fuente && i.guardia ? ' · ' : ''}${i.guardia ? '🛡 '+escHtml(i.guardia) : ''}</div>` : ''}
           ${i.notes ? `<div class="inc-desc">${escHtml(i.notes)}</div>` : ''}
         </div>
-        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="window.open('${i.fotoUrl}','_blank')" title="Ver foto">` : ''}
+        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="openLightbox('${i.fotoUrl}')" title="Ver foto completa">` : ''}
       </div>
     </div>`).join('');
 }
@@ -1495,7 +1526,7 @@ function renderAllList() {
           </div>
           ${(i.fuente||i.guardia) ? `<div style="font-size:0.67rem;color:var(--text-muted);margin-top:1px">${i.fuente?'👤 '+escHtml(i.fuente):''}${i.fuente&&i.guardia?' · ':''}${i.guardia?'🛡 '+escHtml(i.guardia):''}</div>` : ''}
         </div>
-        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="event.stopPropagation();window.open('${i.fotoUrl}','_blank')" title="Ver foto">` : ''}
+        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="event.stopPropagation();openLightbox('${i.fotoUrl}')" title="Ver foto completa">` : ''}
       </div>
     </div>`).join('');
 }
@@ -1655,16 +1686,13 @@ async function saveIncident() {
 
   try {
     if (editingIncidentId) {
-      if (file) {
-        const snap = await storage.ref(`incidents/${editingIncidentId}/foto`).put(file);
-        data.fotoUrl = await snap.ref.getDownloadURL();
-      }
+      if (file) data.fotoUrl = await uploadToCloudinary(file);
       await db.collection(COL_INC).doc(editingIncidentId).update(data);
     } else {
       const docRef = await db.collection(COL_INC).add(data);
       if (file) {
-        const snap = await storage.ref(`incidents/${docRef.id}/foto`).put(file);
-        await docRef.update({ fotoUrl: await snap.ref.getDownloadURL() });
+        const fotoUrl = await uploadToCloudinary(file);
+        await docRef.update({ fotoUrl });
       }
     }
     closeModal();
@@ -1739,6 +1767,29 @@ function exportCSV() {
   a.download = `incidencias_techo_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 }
+async function uploadToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) throw new Error('Error al subir foto a Cloudinary');
+  const json = await res.json();
+  return json.secure_url;
+}
+
+function openLightbox(url) {
+  document.getElementById('photo-lightbox-img').src = url;
+  document.getElementById('photo-lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('photo-lightbox').classList.remove('open');
+  document.getElementById('photo-lightbox-img').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
 function statusLabel(s) { return { abierta:'Abierta', en_reparacion:'En reparación', cerrada:'Cerrada' }[s] || s; }
 function formatDate(d) {
   if (!d) return '—';
