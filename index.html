@@ -10,6 +10,7 @@
 <!-- Firebase compat SDK (no bundler needed) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
   :root {
     --primary:    #00205B;
@@ -262,6 +263,42 @@
   .form-row { display: flex; gap: 9px; }
   .form-row .form-group { flex: 1; }
   .modal-actions { display: flex; gap: 7px; justify-content: flex-end; margin-top: 13px; }
+
+  /* ── Foto upload ─────────────────────────────────────────── */
+  .photo-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    overflow: hidden;
+    background: var(--bg-input);
+    transition: border-color .2s;
+    position: relative;
+  }
+  .photo-area:hover { border-color: var(--accent); }
+  .photo-placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; padding: 20px; color: var(--text-muted); font-size: 0.8rem;
+    min-height: 90px;
+  }
+  .photo-placeholder .ph-icon { font-size: 1.8rem; }
+  .photo-preview-img {
+    width: 100%; max-height: 220px; object-fit: cover; display: block;
+  }
+  .photo-change-hint {
+    text-align: center; padding: 5px; font-size: 0.68rem;
+    color: var(--text-muted); background: var(--bg-card);
+  }
+  .photo-thumb {
+    width: 60px; height: 42px; object-fit: cover; border-radius: 4px;
+    border: 1px solid var(--border); cursor: pointer; vertical-align: middle;
+  }
+  /* Form section divider */
+  .form-section-title {
+    font-size: 0.65rem; font-weight: 700; color: var(--accent);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin: 14px 0 8px; padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
 
   .filter-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 9px; }
   .filter-btn {
@@ -583,31 +620,15 @@
 </header>
 
 <div class="toolbar">
-  <!-- Zona -->
-  <button class="btn-zone" id="zone-btn" onclick="toggleZoneMode()">✏ Definir zona del techo</button>
-  <span class="zone-hint" id="zone-hint">Clic → punto · Doble clic → cerrar · ESC → cancelar</span>
-  <span class="lock-badge purple" id="zone-locked">
-    🔒 Zona fija
-    <button class="btn-secondary" style="padding:2px 6px;font-size:0.68rem;min-height:unset" onclick="unlockZone()">✎ Modificar</button>
+  <!-- Controles de configuración de sectores (sólo en modo ?setup=1) -->
+  <span id="setup-area" style="display:none;align-items:center;gap:5px;flex-shrink:0">
+    <label style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap">Sector:</label>
+    <select id="sector-select" style="padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-input);color:var(--text);font-size:0.74rem;min-height:30px;max-width:170px"></select>
+    <button class="btn-zone" id="sector-draw-btn" onclick="toggleSectorDraw()">✏ Dibujar área</button>
+    <button class="btn-secondary" style="padding:3px 8px;font-size:0.72rem;min-height:28px" onclick="clearSectorPoly()">🗑 Borrar</button>
+    <span class="zone-hint" id="sector-hint">Clic→punto · Doble clic→cerrar · ESC→cancelar</span>
   </span>
-
-  <div class="sep"></div>
-
-  <!-- Grilla -->
-  <span id="grid-edit-area" style="display:flex;align-items:center;gap:5px">
-    <label>Cols:</label>
-    <input type="number" id="cols" value="18" min="1" max="60" onchange="redrawOverlay()">
-    <label>Filas:</label>
-    <input type="number" id="rows" value="20" min="1" max="60" onchange="redrawOverlay()">
-    <button class="btn-success" onclick="lockGrid()">🔒 Fijar grilla</button>
-  </span>
-  <span class="lock-badge green" id="grid-locked-area">
-    🔒 Grilla: <b id="grid-locked-label"></b>
-    <button class="btn-secondary" style="padding:2px 6px;font-size:0.68rem;min-height:unset" onclick="unlockGrid()">✎ Modificar</button>
-  </span>
-
-  <div class="sep"></div>
-
+  <div class="sep" id="sep-setup" style="display:none"></div>
   <button class="btn-secondary" onclick="toggleHeatmap()" id="heatmap-btn">🌡 Calor: ON</button>
   <button class="btn-ao" onclick="toggleActiveOnly()" id="active-btn">👁 Solo activas: OFF</button>
   <button class="btn-warn" onclick="exportCSV()">⬇ CSV</button>
@@ -624,7 +645,7 @@
         <div id="cell-chip-label">—</div>
         <div id="cell-chip-sub">Sin incidencias</div>
       </div>
-      <button id="cell-chip-add" onclick="openModal(selectedCell)">+ Incidencia</button>
+      <button id="cell-chip-add" onclick="openModal(selectedSector)">+ Incidencia</button>
     </div>
 
     <!-- Hint mobile (desaparece al seleccionar una celda) -->
@@ -651,13 +672,9 @@
         <button onclick="rotateCW()" title="Girar derecha (E)">↻</button>
         <button class="wide" onclick="resetNorth()" title="Orientar al norte">⬆ N</button>
       </div>
-      <!-- Rotación de grilla -->
-      <div class="hud-group" id="grid-rot-hud" style="display:none">
-        <span style="font-size:0.65rem;color:var(--text-muted);white-space:nowrap">Grilla</span>
-        <button onclick="rotateGrid(-1)" title="Rotar grilla izquierda">↺</button>
-        <span id="grid-angle-label" style="min-width:32px">0°</span>
-        <button onclick="rotateGrid(1)" title="Rotar grilla derecha">↻</button>
-        <button class="wide" onclick="rotateGrid(0, true)" title="Resetear rotación grilla">⬆ 0</button>
+      <!-- Setup: indicador de dibujo activo -->
+      <div class="hud-group" id="setup-draw-hud" style="display:none">
+        <span id="setup-draw-label" style="font-size:0.65rem;color:var(--accent);white-space:nowrap">✏ Dibujando…</span>
       </div>
     </div>
   </div>
@@ -687,15 +704,20 @@
           <div class="legend-item"><div class="legend-dot" style="background:#f39c12aa"></div> 3–5 incidencias</div>
           <div class="legend-item"><div class="legend-dot" style="background:#e74c3ccc"></div> 6+ o severidad alta</div>
         </div>
+        <div class="legend" id="sector-legend" style="margin-bottom:12px">
+          <h3>Sectores del Techo</h3>
+          <div id="sector-legend-list" style="font-size:0.71rem;line-height:1.8"></div>
+        </div>
         <div class="legend">
           <h3>Instrucciones</h3>
           <div style="font-size:0.73rem;color:var(--text-muted);line-height:1.9">
-            1. Hacé clic en <b style="color:#a855f7">✏ Definir zona</b> y trazá el contorno del techo<br>
-            2. Fijá la grilla con <b style="color:var(--green)">🔒 Fijar grilla</b><br>
-            3. Clic en una celda → registrar incidencia<br>
+            1. Tocá un <b style="color:var(--accent)">sector del techo</b> en el mapa para seleccionarlo<br>
+            2. Registrá incidencias con el botón <b style="color:var(--green)">+ Nueva incidencia</b><br>
+            3. Los sectores se colorean según la cantidad de incidencias<br>
             🖱 Rueda → zoom · Arrastrar → mover mapa<br>
             ✈ AEP → volver a la terminal<br>
-            📱 Dos dedos → zoom/rotar en móvil
+            📱 Dos dedos → zoom/rotar en móvil<br>
+            <span style="color:rgba(255,255,255,0.3)">Admin: accedé con ?admin=1 para dibujar sectores</span>
           </div>
         </div>
       </div>
@@ -732,15 +754,59 @@
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <h2 id="modal-title">Nueva incidencia</h2>
+
+    <div class="form-section-title">📋 Datos del evento</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>📅 Fecha y hora *</label>
+        <input type="datetime-local" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>🏢 Edificio</label>
+        <input type="text" id="f-edificio" placeholder="Ej: Terminal, Muelle A…">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>📍 Ubicación específica</label>
+      <input type="text" id="f-ubicacion" placeholder="Ej: Sector de butacas, sobre viga norte…">
+    </div>
+
+    <div class="form-section-title">👤 Reporte</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fuente</label>
+        <input type="text" id="f-fuente" placeholder="Ej: Inspección, Pasajero…">
+      </div>
+      <div class="form-group">
+        <label>Guardia</label>
+        <input type="text" id="f-guardia" placeholder="Nombre o turno">
+      </div>
+    </div>
+
+    <div class="form-section-title">📷 Foto</div>
+
+    <div class="photo-area" id="photo-area" onclick="document.getElementById('f-foto').click()">
+      <input type="file" id="f-foto" accept="image/*" capture="environment"
+             style="display:none" onchange="previewPhoto(this)">
+      <div id="photo-placeholder" class="photo-placeholder">
+        <span class="ph-icon">📷</span>
+        <span>Tocar para tomar o subir foto</span>
+      </div>
+      <img id="photo-preview-img" class="photo-preview-img" style="display:none" src="" alt="preview">
+      <div id="photo-change-hint" class="photo-change-hint" style="display:none">✓ Foto cargada · Tocar para cambiar</div>
+    </div>
+
+    <div class="form-section-title">📝 Descripción y estado</div>
+
     <div class="form-group">
       <label>Descripción breve *</label>
       <input type="text" id="f-desc" placeholder="Ej: Goteo en viga central">
     </div>
+
     <div class="form-row">
-      <div class="form-group">
-        <label>Fecha y hora *</label>
-        <input type="datetime-local" id="f-date">
-      </div>
       <div class="form-group">
         <label>Severidad</label>
         <select id="f-severity">
@@ -749,22 +815,24 @@
           <option value="alta">Alta</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="f-status">
+          <option value="abierta">Abierta</option>
+          <option value="en_reparacion">En reparación</option>
+          <option value="cerrada">Cerrada</option>
+        </select>
+      </div>
     </div>
-    <div class="form-group">
-      <label>Estado</label>
-      <select id="f-status">
-        <option value="abierta">Abierta</option>
-        <option value="en_reparacion">En reparación</option>
-        <option value="cerrada">Cerrada</option>
-      </select>
-    </div>
+
     <div class="form-group">
       <label>Observaciones</label>
-      <textarea id="f-notes" placeholder="Detalles, materiales afectados, etc."></textarea>
+      <textarea id="f-notes" placeholder="Detalles adicionales, materiales afectados, etc."></textarea>
     </div>
+
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn-primary" onclick="saveIncident()">Guardar</button>
+      <button class="btn-primary" id="save-btn" onclick="saveIncident()">Guardar</button>
     </div>
   </div>
 </div>
@@ -780,28 +848,139 @@ const firebaseConfig = {
   appId:             "1:150969436616:web:a9db26d80ec0f25c1818fd"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db      = firebase.firestore();
+const storage = firebase.storage();
 
-// Colecciones
-const COL_INC    = 'incidents';
-const COL_CONFIG = 'config';
-const DOC_ZONE   = 'zone';
-const DOC_GRID   = 'grid';
+// Colecciones Firestore
+const COL_INC = 'incidents';
+
+// ── Sectores del techo de la terminal AEP ────────────────────────────────────
+const SECTOR_DEFS = [
+  // ── Edificios / infraestructura ──────────────────────────────────────────────
+  { id:'ED-COM',     name:'Comedor Aeropuertos',              short:'Comedor',    color:'#0891b2' },
+  { id:'ED-1',       name:'Edificio 1',                       short:'Edif 1',     color:'#14b8a6' },
+  { id:'ED-2',       name:'Edificio 2',                       short:'Edif 2',     color:'#06b6d4' },
+  { id:'ED-3',       name:'Edificio 3',                       short:'Edif 3',     color:'#0e7490' },
+  { id:'VIP-AMAE',   name:'VIP AMAE',                         short:'VIP AMAE',   color:'#eab308' },
+  // ── Sector P 01-02 ───────────────────────────────────────────────────────────
+  { id:'P-0102',     name:'P 01-02',                          short:'P 01-02',    color:'#c084fc' },
+  { id:'PT-0102',    name:'Puente 01-02',                     short:'Pte 01-02',  color:'#a855f7' },
+  { id:'NC-0102',    name:'Núcleo 01-02',                     short:'Nuc 01-02',  color:'#9333ea' },
+  { id:'SL-23',      name:'Sala 2-3',                         short:'Sala 2-3',   color:'#fb923c' },
+  // ── Sector P 03-04 ───────────────────────────────────────────────────────────
+  { id:'P-0304',     name:'P 03-04',                          short:'P 03-04',    color:'#c084fc' },
+  { id:'PT-0304',    name:'Puente 03-04',                     short:'Pte 03-04',  color:'#a855f7' },
+  { id:'NC-0304',    name:'Núcleo 03-04',                     short:'Nuc 03-04',  color:'#9333ea' },
+  { id:'ED-4',       name:'Edificio 4',                       short:'Edif 4',     color:'#0e7490' },
+  { id:'SL-45',      name:'Sala 4-5',                         short:'Sala 4-5',   color:'#fb923c' },
+  // ── Sector P 05-06 ───────────────────────────────────────────────────────────
+  { id:'P-0506',     name:'P 05-06',                          short:'P 05-06',    color:'#c084fc' },
+  { id:'PT-0506',    name:'Puente 05-06',                     short:'Pte 05-06',  color:'#a855f7' },
+  { id:'NC-0506',    name:'Núcleo 05-06',                     short:'Nuc 05-06',  color:'#9333ea' },
+  { id:'SL-67',      name:'Sala 6-7',                         short:'Sala 6-7',   color:'#fb923c' },
+  // ── Sector P 07-08 ───────────────────────────────────────────────────────────
+  { id:'P-0708',     name:'P 07-08',                          short:'P 07-08',    color:'#c084fc' },
+  { id:'PT-0708',    name:'Puente 07-08',                     short:'Pte 07-08',  color:'#a855f7' },
+  { id:'NC-0708',    name:'Núcleo 07-08',                     short:'Nuc 07-08',  color:'#9333ea' },
+  { id:'SL-89',      name:'Sala 8-9',                         short:'Sala 8-9',   color:'#fb923c' },
+  // ── Sector P 09-10 ───────────────────────────────────────────────────────────
+  { id:'P-0910',     name:'P 09-10',                          short:'P 09-10',    color:'#c084fc' },
+  { id:'PT-0910',    name:'Puente 09-10',                     short:'Pte 09-10',  color:'#a855f7' },
+  { id:'NC-0910',    name:'Núcleo 09-10',                     short:'Nuc 09-10',  color:'#9333ea' },
+  // ── Locales comerciales (zona central) ──────────────────────────────────────
+  { id:'CM-HAVA1',   name:'Havanna',                          short:'Havanna',    color:'#16a34a' },
+  { id:'CM-PANNI',   name:'Panni',                            short:'Panni',      color:'#15803d' },
+  { id:'CM-SET01',   name:'Set 01',                           short:'Set 01',     color:'#166534' },
+  { id:'CM-SET03',   name:'Set 03',                           short:'Set 03',     color:'#166534' },
+  { id:'CM-SHOPG',   name:'Shop Gallery',                     short:'Shop Gal.',  color:'#14532d' },
+  { id:'SL-1011',    name:'Sala 10-11',                       short:'S 10-11',    color:'#fb923c' },
+  // ── Sector P 11-12 ───────────────────────────────────────────────────────────
+  { id:'P-1112',     name:'P 11-12',                          short:'P 11-12',    color:'#c084fc' },
+  { id:'PT-1112',    name:'Puente 11-12',                     short:'Pte 11-12',  color:'#a855f7' },
+  { id:'NC-1112',    name:'Núcleo 11-12',                     short:'Nuc 11-12',  color:'#9333ea' },
+  { id:'CM-YENNY',   name:'Yenny',                            short:'Yenny',      color:'#22c55e' },
+  { id:'SL-1213',    name:'Sala 12-13',                       short:'S 12-13',    color:'#fb923c' },
+  // ── PIR Nacional ─────────────────────────────────────────────────────────────
+  { id:'OF-PSA',     name:'Oficinas PSA PIR Nacional',        short:'Of. PSA',    color:'#64748b' },
+  { id:'PIR-NAC',    name:'PIR Nacional',                     short:'PIR Nac.',   color:'#3b82f6' },
+  // ── Sector P 13-14 ───────────────────────────────────────────────────────────
+  { id:'P-1314',     name:'P 13-14',                          short:'P 13-14',    color:'#c084fc' },
+  { id:'PT-1314',    name:'Puente 13-14',                     short:'Pte 13-14',  color:'#a855f7' },
+  { id:'NC-1314',    name:'Núcleo 13-14',                     short:'Nuc 13-14',  color:'#9333ea' },
+  { id:'HA-ED5',     name:'Hall Planta Alta Edificio 5',      short:'Hall Ed5',   color:'#84cc16' },
+  { id:'SL-1415',    name:'Sala 14-15',                       short:'S 14-15',    color:'#fb923c' },
+  // ── Patio de comidas / pasillo técnico ───────────────────────────────────────
+  { id:'TEC-CLAR',   name:'Claraboya Patio de Comidas',       short:'Claraboya',  color:'#94a3b8' },
+  { id:'TEC-PTEC',   name:'Pasillo Técnico y Local Comercial',short:'Pas. Téc.',  color:'#94a3b8' },
+  // ── Sector P 15-16 ───────────────────────────────────────────────────────────
+  { id:'P-1516',     name:'P 15-16',                          short:'P 15-16',    color:'#c084fc' },
+  { id:'PT-1516',    name:'Puente 15-16',                     short:'Pte 15-16',  color:'#a855f7' },
+  { id:'NC-1516',    name:'Núcleo 15-16',                     short:'Nuc 15-16',  color:'#9333ea' },
+  { id:'HA-ED6',     name:'Hall Planta Alta Edificio 6',      short:'Hall Ed6',   color:'#84cc16' },
+  { id:'CM-STAR',    name:'Starbucks PA',                     short:'Starbucks',  color:'#22c55e' },
+  { id:'SL-1617',    name:'Sala 16-17',                       short:'S 16-17',    color:'#fb923c' },
+  { id:'TEC-PC1617', name:'Pasillo Conexiones Sala 16-17',    short:'Pas. 16-17', color:'#94a3b8' },
+  { id:'CM-OUTB',    name:'Outback',                          short:'Outback',    color:'#16a34a' },
+  { id:'CM-FLGAR',   name:'Florida Garden',                   short:'Fl. Garden', color:'#15803d' },
+  { id:'TEC-IMPL',   name:'Impluvium',                        short:'Impluvium',  color:'#94a3b8' },
+  { id:'TEC-MESA',   name:'Mesas de Carga Internacional',     short:'Mesas Carg', color:'#94a3b8' },
+  // ── Sector P 17-18 ───────────────────────────────────────────────────────────
+  { id:'P-1718',     name:'P 17-18',                          short:'P 17-18',    color:'#c084fc' },
+  { id:'PT-1718',    name:'Puente 17-18',                     short:'Pte 17-18',  color:'#a855f7' },
+  { id:'NC-1718',    name:'Núcleo 17-18',                     short:'Nuc 17-18',  color:'#9333ea' },
+  { id:'CM-LPAIN',   name:'Le Pain Q',                        short:'Le Pain Q',  color:'#22c55e' },
+  { id:'INT-INGPIR', name:'Ingreso PIR Internacional',        short:'Ing. PIR',   color:'#60a5fa' },
+  { id:'CM-FAUST',   name:'Fausto',                           short:'Fausto',     color:'#16a34a' },
+  { id:'SL-1819',    name:'Sala 18-19',                       short:'S 18-19',    color:'#fb923c' },
+  { id:'TEC-PC1820', name:'Pasillo Conexiones Sala 18-20',    short:'Pas. 18-20', color:'#94a3b8' },
+  // ── Internacional / PIR ──────────────────────────────────────────────────────
+  { id:'INT-CORR',   name:'Corralito PIR Internacional',      short:'Corralito',  color:'#60a5fa' },
+  { id:'INT-DFPAR',  name:'Duty Free Partidas',               short:'DF Part.',   color:'#3b82f6' },
+  { id:'INT-MIGPAR', name:'Migraciones Partidas',             short:'Migr. Part', color:'#2563eb' },
+  { id:'PIR-INT',    name:'PIR Internacional',                short:'PIR Int.',   color:'#1d4ed8' },
+  // ── Sector P 19-20 ───────────────────────────────────────────────────────────
+  { id:'P-1920',     name:'P 19-20',                          short:'P 19-20',    color:'#c084fc' },
+  { id:'TEC-PTCON',  name:'Puerta Conexiones',                short:'Pta. Conex', color:'#94a3b8' },
+  { id:'PT-1920',    name:'Puente 19-20',                     short:'Pte 19-20',  color:'#a855f7' },
+  { id:'NC-1920',    name:'Núcleo 19-20',                     short:'Nuc 19-20',  color:'#9333ea' },
+  // ── Arribos internacional ────────────────────────────────────────────────────
+  { id:'INT-DFARR',  name:'Duty Free Arribos',                short:'DF Arrib.',  color:'#3b82f6' },
+  { id:'INT-ADUA',   name:'Aduana Arribos',                   short:'Aduana',     color:'#1d4ed8' },
+  { id:'INT-STRI',   name:'Sala Triangular',                  short:'S. Triang.', color:'#60a5fa' },
+  { id:'INT-SET00',  name:'Set 00',                           short:'Set 00',     color:'#475569' },
+  { id:'INT-SENAS',  name:'SENASA',                           short:'SENASA',     color:'#475569' },
+  { id:'INT-SALPPA', name:'Salida PPA Arribos',               short:'Sal. PPA',   color:'#94a3b8' },
+  { id:'INT-MIGARR', name:'Migraciones Arribos',              short:'Migr. Arr.', color:'#2563eb' },
+  { id:'INT-ARRINT', name:'Arribos Internacional',            short:'Arrib. Int', color:'#1d4ed8' },
+  { id:'INT-SALMIG', name:'Sala Migraciones',                 short:'S. Migr.',   color:'#3b82f6' },
+  { id:'INT-ARRPUB', name:'Arribos Inter Público',            short:'Arrib. Pub', color:'#60a5fa' },
+  { id:'CM-HAVAR',   name:'Havanna Arribos Inter',            short:'Hav. Arrib', color:'#22c55e' },
+];
+
+// ── Polígonos GPS — vacíos hasta que se dibujen con ?setup=1 ─────────────────
+const SECTOR_POLYGONS = {};
+
+// ── Setup mode (URL: ?setup=1) ────────────────────────────────────────────────
+const IS_SETUP = new URLSearchParams(window.location.search).get('setup') === '1';
+
+// ── Colecciones Firestore ─────────────────────────────────────────────────────
+const COL_CONFIG  = 'config';
+const DOC_SECTORS = 'sectors';
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let incidents       = [];
-let terminalPolygon = [];
-let selectedCell    = null;
-let showHeatmap     = true;
-let showActiveOnly  = false;
-let currentFilter   = 'all';
-let zoneMode        = false;
-let draftPolygon    = [];
-let mouseLatLng     = null;
-let gridAngle       = 0;   // grados de rotación de la grilla
+let incidents      = [];
+// Los polígonos arrancan con las coords aproximadas; se sobreescriben con Firestore si existen
+let sectorPolygons = Object.assign({}, SECTOR_POLYGONS);
+let selectedSector = null;
+let showHeatmap    = true;
+let showActiveOnly = false;
+let currentFilter  = 'all';
+let sectorDrawMode = null;  // id del sector que se está dibujando (solo en setup)
+let draftSector    = [];    // puntos del polígono en construcción
+let mouseLatLng    = null;
 
 // ── Leaflet map ───────────────────────────────────────────────────────────────
-const AEP = [-34.5590184, -58.4156511];
+const AEP = [-34.5574, -58.4165];  // Centro del terminal AEP (calibrado sobre plano)
 
 const map = L.map('map', {
   center: AEP,
@@ -909,12 +1088,8 @@ function drawCompass() {
 function latlng2px(latlng) { return map.latLngToContainerPoint(L.latLng(latlng.lat, latlng.lng)); }
 function px2latlng(x, y)   { return map.containerPointToLatLng(L.point(x, y)); }
 
-function getZoneBbox() {
-  if (terminalPolygon.length < 3) return null;
-  const lats = terminalPolygon.map(p => p.lat);
-  const lngs = terminalPolygon.map(p => p.lng);
-  return { north: Math.max(...lats), south: Math.min(...lats), east: Math.max(...lngs), west: Math.min(...lngs) };
-}
+// Mantener por compatibilidad con cualquier código restante
+function getZoneBbox() { return null; }
 
 function pointInPoly(lat, lng, poly) {
   let inside = false;
@@ -925,56 +1100,45 @@ function pointInPoly(lat, lng, poly) {
   return inside;
 }
 
-function getCols() { return parseInt(document.getElementById('cols').value) || 18; }
-function getRows() { return parseInt(document.getElementById('rows').value) || 20; }
-function cellKey(r, c) { return String.fromCharCode(65 + c) + (r + 1); }
-function cellIncidents(key) { return incidents.filter(i => i.cell === key); }
+// ── Sector helpers ────────────────────────────────────────────────────────────
+function sectorIncidents(id) { return incidents.filter(i => i.cell === id); }
 
-// ── Rotación de grilla ────────────────────────────────────────────────────────
-function rotatePoint(px, py, cx, cy, angleDeg) {
-  const a   = angleDeg * Math.PI / 180;
-  const cos = Math.cos(a), sin = Math.sin(a);
-  const dx  = px - cx, dy = py - cy;
-  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
+function hasSectorActive(id) {
+  return incidents.some(i => i.cell === id && (i.status === 'abierta' || i.status === 'en_reparacion'));
 }
 
-function getGridCenterPx(bbox) {
-  const nw = latlng2px({ lat: bbox.north, lng: bbox.west });
-  const se = latlng2px({ lat: bbox.south, lng: bbox.east });
-  return { x: (nw.x + se.x) / 2, y: (nw.y + se.y) / 2 };
+function getSectorDef(id) { return SECTOR_DEFS.find(d => d.id === id); }
+function getSectorName(id) {
+  const d = getSectorDef(id);
+  return d ? d.name : (id || '—');
 }
 
-function getCellCenter(r, c, bbox) {
-  const rows = getRows(), cols = getCols();
-  return {
-    lat: bbox.north - (r + 0.5) * (bbox.north - bbox.south) / rows,
-    lng: bbox.west  + (c + 0.5) * (bbox.east  - bbox.west)  / cols
-  };
+function getSectorAt(pt) {
+  for (const def of SECTOR_DEFS) {
+    const poly = sectorPolygons[def.id];
+    if (!poly || poly.length < 3) continue;
+    if (pointInPoly(pt.lat, pt.lng, poly)) return def.id;
+  }
+  return null;
 }
 
-function getCellPx(r, c, bbox) {
-  const rows = getRows(), cols = getCols();
-  const latStep = (bbox.north - bbox.south) / rows;
-  const lngStep = (bbox.east  - bbox.west)  / cols;
-  const nw = latlng2px({ lat: bbox.north - r       * latStep, lng: bbox.west + c       * lngStep });
-  const ne = latlng2px({ lat: bbox.north - r       * latStep, lng: bbox.west + (c + 1) * lngStep });
-  const se = latlng2px({ lat: bbox.north - (r + 1) * latStep, lng: bbox.west + (c + 1) * lngStep });
-  const sw = latlng2px({ lat: bbox.north - (r + 1) * latStep, lng: bbox.west + c       * lngStep });
-  if (gridAngle === 0) return { nw, ne, se, sw };
-  // Rotar alrededor del centro del bbox
-  const { x: cx, y: cy } = getGridCenterPx(bbox);
-  return {
-    nw: rotatePoint(nw.x, nw.y, cx, cy, gridAngle),
-    ne: rotatePoint(ne.x, ne.y, cx, cy, gridAngle),
-    se: rotatePoint(se.x, se.y, cx, cy, gridAngle),
-    sw: rotatePoint(sw.x, sw.y, cx, cy, gridAngle),
-  };
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function cellInZone(r, c, bbox) {
-  if (terminalPolygon.length < 3) return true;
-  const center = getCellCenter(r, c, bbox);
-  return pointInPoly(center.lat, center.lng, terminalPolygon);
+function getPolyCentroid(pts) {
+  let x = 0, y = 0;
+  pts.forEach(p => { x += p.x; y += p.y; });
+  return { x: x / pts.length, y: y / pts.length };
+}
+
+function polyScreenArea(pts) {
+  let area = 0;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    area += (pts[j].x + pts[i].x) * (pts[j].y - pts[i].y);
+  }
+  return Math.abs(area) / 2;
 }
 
 function heatColor(n, sev) {
@@ -984,127 +1148,105 @@ function heatColor(n, sev) {
   return 'rgba(241,196,15,0.50)';
 }
 
-function hasActive(key) {
-  return incidents.some(i => i.cell === key && (i.status === 'abierta' || i.status === 'en_reparacion'));
-}
-
 // ── Redraw ────────────────────────────────────────────────────────────────────
 function redrawOverlay() {
   ctx.clearRect(0, 0, oc.width, oc.height);
-  drawGrid();
-  drawZone();
+  drawSectors();
 }
 
-function drawGrid() {
-  if (terminalPolygon.length < 3) return;
-  const bbox = getZoneBbox();
-  const rows = getRows(), cols = getCols();
+// ── Dibuja sectores en el canvas overlay ──────────────────────────────────────
+function drawSectors() {
+  SECTOR_DEFS.forEach(def => {
+    const poly = sectorPolygons[def.id];
+    const isSelected = selectedSector === def.id;
 
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (!cellInZone(r, c, bbox)) continue;
-      const key  = cellKey(r, c);
-      const incs = cellIncidents(key);
-      const px   = getCellPx(r, c, bbox);
-      const active = hasActive(key);
-
-      ctx.beginPath();
-      ctx.moveTo(px.nw.x, px.nw.y);
-      ctx.lineTo(px.ne.x, px.ne.y);
-      ctx.lineTo(px.se.x, px.se.y);
-      ctx.lineTo(px.sw.x, px.sw.y);
-      ctx.closePath();
-
-      if (showActiveOnly && !active) {
-        ctx.fillStyle = 'rgba(0,0,0,0.50)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-        continue;
-      }
-
-      if (showHeatmap && incs.length > 0) {
-        const sev = incs.some(i => i.severity === 'alta') ? 'alta'
-                  : incs.some(i => i.severity === 'media') ? 'media' : 'baja';
-        ctx.fillStyle = heatColor(incs.length, sev);
-        ctx.fill();
-      }
-
-      if (selectedCell === key) {
-        ctx.strokeStyle = '#E8A000';
-        ctx.lineWidth = 2.5;
-      } else {
-        ctx.strokeStyle = 'rgba(255,255,255,0.30)';
-        ctx.lineWidth = 0.8;
-      }
-      ctx.stroke();
-
-      const cx = (px.nw.x + px.se.x) / 2;
-      const cy = (px.nw.y + px.se.y) / 2;
-      const cellH = Math.abs(px.sw.y - px.nw.y);
-      const cellW = Math.abs(px.ne.x - px.nw.x);
-      const fs = Math.max(7, Math.min(cellW, cellH) * 0.20);
-      ctx.fillStyle = 'rgba(255,255,255,0.90)';
-      ctx.font = `bold ${fs}px Segoe UI`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(key, cx, cy);
-
-      if (incs.length > 0) {
-        const bs = Math.max(11, Math.min(cellW, cellH) * 0.25);
-        ctx.fillStyle = 'rgba(0,0,0,0.75)';
-        ctx.fillRect(px.ne.x - bs - 1, px.nw.y + 1, bs, bs);
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${bs * 0.62}px Segoe UI`;
-        ctx.fillText(incs.length, px.ne.x - bs / 2 - 1, px.nw.y + bs / 2 + 1);
-      }
-
-      if (active) {
-        const dr = Math.max(3, Math.min(cellW, cellH) * 0.07);
-        ctx.beginPath();
-        ctx.arc(px.sw.x + dr + 2, px.sw.y - dr - 2, dr, 0, Math.PI * 2);
-        ctx.fillStyle = incs.some(i => i.status === 'abierta') ? '#e74c3c' : '#f39c12';
-        ctx.fill();
-      }
+    // Borrador mientras se dibuja (solo modo setup)
+    if (sectorDrawMode === def.id && draftSector.length > 0) {
+      const pts = draftSector.map(p => latlng2px(p));
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+      if (mouseLatLng) { const mp = latlng2px(mouseLatLng); ctx.lineTo(mp.x, mp.y); }
+      ctx.strokeStyle = def.color; ctx.lineWidth = 2; ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
+      pts.forEach((p,i) => { ctx.beginPath(); ctx.arc(p.x,p.y,i===0?6:4,0,Math.PI*2); ctx.fillStyle=i===0?'#E8A000':def.color; ctx.fill(); });
+      return;
     }
-  }
-}
 
-function drawZone() {
-  const poly = terminalPolygon.length >= 3 ? terminalPolygon : null;
-  if (poly) {
-    const pts = poly.map(p => latlng2px(p));
+    if (!poly || poly.length < 3) return;
+
+    const pts    = poly.map(p => latlng2px(p));
+    const incs   = sectorIncidents(def.id);
+    const active = hasSectorActive(def.id);
+
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
     pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
     ctx.closePath();
-    ctx.strokeStyle = '#a855f7';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 3]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fillStyle = '#a855f7'; ctx.fill(); });
-  }
 
-  if (zoneMode && draftPolygon.length > 0) {
-    const pts = draftPolygon.map(p => latlng2px(p));
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
-    if (mouseLatLng) ctx.lineTo(latlng2px(mouseLatLng).x, latlng2px(mouseLatLng).y);
-    ctx.strokeStyle = '#f39c12';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 3]);
+    // Relleno
+    if (showActiveOnly && !active) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(def.color, 0.12);
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+      return;
+    }
+
+    if (showHeatmap && incs.length > 0) {
+      const sev = incs.some(i => i.severity === 'alta') ? 'alta'
+               : incs.some(i => i.severity === 'media') ? 'media' : 'baja';
+      ctx.fillStyle = heatColor(incs.length, sev);
+    } else {
+      ctx.fillStyle = hexToRgba(def.color, isSelected ? 0.22 : 0.10);
+    }
+    ctx.fill();
+
+    // Borde
+    ctx.strokeStyle = isSelected ? '#E8A000' : hexToRgba(def.color, 0.75);
+    ctx.lineWidth   = isSelected ? 2.5 : 1.5;
+    if (isSelected) ctx.setLineDash([]);
     ctx.stroke();
     ctx.setLineDash([]);
-    pts.forEach((p, i) => {
+
+    // Etiqueta
+    const area    = polyScreenArea(pts);
+    const minDim  = Math.sqrt(area);
+    const center  = getPolyCentroid(pts);
+    const fs      = Math.max(7, Math.min(minDim * 0.13, 13));
+    ctx.save();
+    ctx.font      = `bold ${fs}px Segoe UI`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Sombra de texto
+    ctx.shadowColor   = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur    = 3;
+    ctx.fillStyle     = '#fff';
+    const label = def.short || def.name;
+    ctx.fillText(label, center.x, center.y);
+    ctx.shadowBlur = 0;
+
+    // Badge de incidencias
+    if (incs.length > 0) {
+      const bs = Math.max(11, fs * 1.1);
+      const bx = center.x + fs * 0.6, by = center.y - fs * 1.0;
+      ctx.fillStyle = 'rgba(0,0,0,0.78)';
+      ctx.fillRect(bx - bs/2, by - bs/2, bs, bs);
+      ctx.fillStyle = '#fff';
+      ctx.font = `bold ${bs * 0.62}px Segoe UI`;
+      ctx.fillText(incs.length, bx, by);
+    }
+
+    // Punto de incidencia activa
+    if (active) {
+      const dr = Math.max(3, minDim * 0.04);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, i === 0 ? 6 : 4, 0, Math.PI * 2);
-      ctx.fillStyle = i === 0 ? '#E8A000' : '#f39c12';
+      ctx.arc(pts[0].x + dr + 2, pts[0].y - dr - 2, dr, 0, Math.PI * 2);
+      ctx.fillStyle = incs.some(i => i.status === 'abierta') ? '#e74c3c' : '#f39c12';
       ctx.fill();
-    });
-  }
+    }
+    ctx.restore();
+  });
 }
 
 // ── Detección pan vs tap ──────────────────────────────────────────────────────
@@ -1116,168 +1258,92 @@ map.on('zoomend',    () => { setTimeout(() => { _mapDragged = false; }, 200); })
 
 // ── Map events ────────────────────────────────────────────────────────────────
 map.on('click', e => {
-  if (_mapDragged) return;   // ignorar clicks después de un pan/zoom
+  if (_mapDragged) return;
   const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
 
-  if (zoneMode) {
-    if (draftPolygon.length >= 3) {
-      const fp = latlng2px(draftPolygon[0]);
+  // Modo setup: agregar punto al polígono en construcción
+  if (sectorDrawMode) {
+    if (draftSector.length >= 3) {
+      const fp = latlng2px(draftSector[0]);
       const cp = map.latLngToContainerPoint(e.latlng);
-      if (Math.hypot(cp.x - fp.x, cp.y - fp.y) < 15) { finalizeZone(); return; }
+      if (Math.hypot(cp.x - fp.x, cp.y - fp.y) < 15) { finalizeSector(); return; }
     }
-    draftPolygon.push(pt);
-    redrawOverlay();
-    return;
+    draftSector.push(pt); redrawOverlay(); return;
   }
 
-  if (terminalPolygon.length < 3) return;
-  const bbox = getZoneBbox();
-  const rows = getRows(), cols = getCols();
-  const latStep = (bbox.north - bbox.south) / rows;
-  const lngStep = (bbox.east  - bbox.west)  / cols;
-
-  // Si la grilla está rotada, des-rotar el clic para el hit-test
-  let testPt = pt;
-  if (gridAngle !== 0) {
-    const clickPx = map.latLngToContainerPoint(e.latlng);
-    const { x: cx, y: cy } = getGridCenterPx(bbox);
-    const unrot = rotatePoint(clickPx.x, clickPx.y, cx, cy, -gridAngle);
-    const ll    = map.containerPointToLatLng(L.point(unrot.x, unrot.y));
-    testPt = { lat: ll.lat, lng: ll.lng };
-  }
-
-  const r = Math.floor((bbox.north - testPt.lat) / latStep);
-  const c = Math.floor((testPt.lng - bbox.west)  / lngStep);
-  if (r < 0 || r >= rows || c < 0 || c >= cols) return;
-  if (!cellInZone(r, c, bbox)) return;
-  const key = cellKey(r, c);
-  selectedCell = key;
-  redrawOverlay();
-  showSectionTab(key);
+  // Seleccionar sector
+  const hit = getSectorAt(pt);
+  if (hit) { selectedSector = hit; redrawOverlay(); showSectionTab(hit); }
+  else      { selectedSector = null; updateSectorChip(null); redrawOverlay(); }
 });
 
 map.on('dblclick', e => {
-  if (!zoneMode || draftPolygon.length < 3) return;
-  L.DomEvent.stop(e);
-  finalizeZone();
+  if (!sectorDrawMode || draftSector.length < 3) return;
+  L.DomEvent.stop(e); finalizeSector();
 });
 
 map.on('mousemove', e => {
-  if (!zoneMode) return;
-  mouseLatLng = { lat: e.latlng.lat, lng: e.latlng.lng };
-  redrawOverlay();
+  if (!sectorDrawMode) return;
+  mouseLatLng = { lat: e.latlng.lat, lng: e.latlng.lng }; redrawOverlay();
 });
 
-// ── Zone management ───────────────────────────────────────────────────────────
-// ── Modo admin (URL: ?admin=1) ────────────────────────────────────────────────
-const IS_ADMIN = new URLSearchParams(window.location.search).get('admin') === '1';
-
-// ── Rotación de grilla ────────────────────────────────────────────────────────
-function rotateGrid(delta, reset = false) {
-  gridAngle = reset ? 0 : gridAngle + delta;
-  document.getElementById('grid-angle-label').textContent = Math.round(gridAngle) + '°';
-  redrawOverlay();
-  // Guardar en Firestore de forma diferida
-  clearTimeout(rotateGrid._timer);
-  rotateGrid._timer = setTimeout(async () => {
-    try {
-      await db.collection(COL_CONFIG).doc(DOC_GRID).set(
-        { gridAngle },
-        { merge: true }
-      );
-    } catch(e) { console.error('Error guardando ángulo:', e); }
-  }, 800);
+// ── Funciones setup (dibujar sectores) ───────────────────────────────────────
+function populateSectorSelect() {
+  const sel = document.getElementById('sector-select');
+  sel.innerHTML = SECTOR_DEFS.map(d => {
+    const hasPoly = sectorPolygons[d.id] && sectorPolygons[d.id].length >= 3;
+    return `<option value="${d.id}">${hasPoly ? '✓ ' : '○ '}${d.name}</option>`;
+  }).join('');
 }
 
-function updateZoneUI() {
-  const defined = terminalPolygon.length >= 3;
-  // Botón "Definir zona": solo si no hay zona Y es admin (o no hay zona aún)
-  document.getElementById('zone-btn').style.display    = defined ? 'none' : '';
-  document.getElementById('zone-hint').classList.remove('on');
-
-  const lockedEl = document.getElementById('zone-locked');
-  lockedEl.style.display = defined ? 'flex' : 'none';
-  // Botón Modificar zona: solo admin
-  const zoneModBtn = lockedEl.querySelector('button');
-  if (zoneModBtn) zoneModBtn.style.display = IS_ADMIN ? '' : 'none';
-
-  // Control rotación de grilla: solo visible cuando hay zona Y es admin
-  const hudEl = document.getElementById('grid-rot-hud');
-  if (hudEl) hudEl.style.display = (defined && IS_ADMIN) ? '' : 'none';
+function toggleSectorDraw() {
+  const id  = document.getElementById('sector-select').value;
+  if (!id) return;
+  const btn = document.getElementById('sector-draw-btn');
+  const hud = document.getElementById('setup-draw-hud');
+  if (sectorDrawMode === id) {
+    sectorDrawMode = null; draftSector = []; mouseLatLng = null;
+    btn.textContent = '✏ Dibujar área'; btn.classList.remove('active');
+    document.getElementById('sector-hint').classList.remove('on');
+    if (hud) hud.style.display = 'none';
+    document.getElementById('map').style.cursor = ''; map.doubleClickZoom.enable(); redrawOverlay();
+  } else {
+    sectorDrawMode = id; draftSector = []; mouseLatLng = null;
+    btn.textContent = '⏹ Cancelar'; btn.classList.add('active');
+    document.getElementById('sector-hint').classList.add('on');
+    if (hud) { hud.style.display=''; document.getElementById('setup-draw-label').textContent=`✏ ${getSectorName(id)}`; }
+    document.getElementById('map').style.cursor = 'crosshair'; map.doubleClickZoom.disable(); redrawOverlay();
+  }
 }
 
-function toggleZoneMode() {
-  if (terminalPolygon.length >= 3) return;
-  zoneMode = !zoneMode;
-  draftPolygon = [];
-  mouseLatLng  = null;
-  const btn = document.getElementById('zone-btn');
-  btn.classList.toggle('active', zoneMode);
-  btn.textContent = zoneMode ? '✏ Trazando zona…' : '✏ Definir zona del techo';
-  document.getElementById('zone-hint').classList.toggle('on', zoneMode);
-  map.doubleClickZoom[zoneMode ? 'disable' : 'enable']();
-  document.getElementById('map').style.cursor = zoneMode ? 'crosshair' : '';
-  redrawOverlay();
-}
-
-async function finalizeZone() {
-  terminalPolygon = [...draftPolygon];
-  draftPolygon    = [];
-  mouseLatLng     = null;
-  zoneMode        = false;
-  map.doubleClickZoom.enable();
-  document.getElementById('map').style.cursor = '';
-  updateZoneUI();
-  redrawOverlay();
+async function finalizeSector() {
+  if (!sectorDrawMode || draftSector.length < 3) return;
+  const id = sectorDrawMode;
+  sectorPolygons[id] = [...draftSector];
+  sectorDrawMode = null; draftSector = []; mouseLatLng = null;
+  const btn = document.getElementById('sector-draw-btn');
+  btn.textContent = '✏ Dibujar área'; btn.classList.remove('active');
+  document.getElementById('sector-hint').classList.remove('on');
+  const hud = document.getElementById('setup-draw-hud');
+  if (hud) hud.style.display = 'none';
+  document.getElementById('map').style.cursor = ''; map.doubleClickZoom.enable();
+  populateSectorSelect(); redrawOverlay();
   try {
-    await db.collection(COL_CONFIG).doc(DOC_ZONE).set({ polygon: terminalPolygon });
-  } catch(e) { console.error('Error guardando zona:', e); }
+    await db.collection(COL_CONFIG).doc(DOC_SECTORS).set(
+      { polygons: { [id]: sectorPolygons[id] } }, { merge: true });
+    console.log(`✓ Sector ${id} guardado`);
+  } catch(e) { console.error('Error guardando sector:', e); alert('Error al guardar. Revisá la consola.'); }
 }
 
-async function unlockZone() {
-  if (!confirm('¿Modificar la zona del techo?\nPodrás redibujar el contorno.')) return;
-  terminalPolygon = [];
-  draftPolygon    = [];
-  updateZoneUI();
-  redrawOverlay();
+async function clearSectorPoly() {
+  const id = document.getElementById('sector-select').value;
+  if (!id) return;
+  if (!confirm(`¿Borrar el polígono de "${getSectorName(id)}"?`)) return;
+  delete sectorPolygons[id];
+  populateSectorSelect(); redrawOverlay();
   try {
-    await db.collection(COL_CONFIG).doc(DOC_ZONE).set({ polygon: [] });
-  } catch(e) { console.error('Error borrando zona:', e); }
-}
-
-// ── Grid management ───────────────────────────────────────────────────────────
-function applyGridLockUI(cols, rows) {
-  document.getElementById('cols').value = cols;
-  document.getElementById('rows').value = rows;
-  document.getElementById('grid-edit-area').style.display   = 'none';
-  const lockedArea = document.getElementById('grid-locked-area');
-  lockedArea.style.display = 'flex';
-  document.getElementById('grid-locked-label').textContent  = `${cols}×${rows}`;
-  // Botón Modificar grilla: solo admin
-  const gridModBtn = lockedArea.querySelector('button');
-  if (gridModBtn) gridModBtn.style.display = IS_ADMIN ? '' : 'none';
-  // Rotación de grilla: solo admin
-  const hudEl = document.getElementById('grid-rot-hud');
-  if (hudEl) hudEl.style.display = IS_ADMIN ? '' : 'none';
-}
-
-async function lockGrid() {
-  const cols = getCols(), rows = getRows();
-  if (cols < 1 || rows < 1) { alert('Valores inválidos.'); return; }
-  applyGridLockUI(cols, rows);
-  redrawOverlay();
-  try {
-    await db.collection(COL_CONFIG).doc(DOC_GRID).set({ cols, rows, locked: true });
-  } catch(e) { console.error('Error guardando grilla:', e); }
-}
-
-async function unlockGrid() {
-  if (!confirm('¿Modificar el seccionado?\nLas incidencias existentes quedan en las celdas antiguas.')) return;
-  document.getElementById('grid-edit-area').style.display   = 'flex';
-  document.getElementById('grid-locked-area').style.display = 'none';
-  try {
-    await db.collection(COL_CONFIG).doc(DOC_GRID).update({ locked: false });
-  } catch(e) { console.error('Error desbloqueando grilla:', e); }
+    await db.collection(COL_CONFIG).doc(DOC_SECTORS).set({ polygons: { [id]: [] } }, { merge: true });
+  } catch(e) { console.error('Error borrando sector:', e); }
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -1311,26 +1377,33 @@ function getSheetState() {
 function toggleMobileSheet(forceOpen) {
   if (!isMobile()) return;
   if (forceOpen === true)  { setSheetState('expanded'); return; }
-  if (forceOpen === false) { setSheetState(selectedCell ? 'peek' : 'collapsed'); return; }
-  // Toggle: collapsed/peek → expanded, expanded → peek/collapsed
+  if (forceOpen === false) { setSheetState(selectedSector ? 'peek' : 'collapsed'); return; }
   const cur = getSheetState();
-  if (cur === 'expanded') setSheetState(selectedCell ? 'peek' : 'collapsed');
+  if (cur === 'expanded') setSheetState(selectedSector ? 'peek' : 'collapsed');
   else                    setSheetState('expanded');
 }
 
-function showSectionTab(key) {
-  const incs = cellIncidents(key);
+function showSectionTab(id) {
+  const def  = getSectorDef(id);
+  const incs = sectorIncidents(id);
   document.getElementById('section-info').style.display = 'block';
-  document.getElementById('section-title').textContent  = `Sección ${key}`;
+  document.getElementById('section-title').textContent  = def ? def.name : `Sector ${id}`;
   document.getElementById('section-count').textContent  = `${incs.length} incidencia(s)`;
-  renderSectionList(key);
-  updateCellChip(key);
+  if (def) {
+    let descEl = document.getElementById('section-desc');
+    if (!descEl) {
+      descEl = document.createElement('div');
+      descEl.id = 'section-desc';
+      descEl.style.cssText = 'font-size:0.67rem;color:var(--text-muted);margin-top:2px;line-height:1.4';
+      document.getElementById('section-info').appendChild(descEl);
+    }
+    descEl.textContent = def.desc;
+  }
+  renderSectionList(id);
+  updateSectorChip(id);
 
   if (isMobile()) {
-    // En mobile: mostrar chip + peek del sheet (tabs visibles, no tapa el mapa)
-    // Solo expandir completamente si el usuario ya lo pidió
     if (getSheetState() !== 'expanded') setSheetState('peek');
-    // Asegurarse de que la tab "Sección" esté activa (sin disparar showTab que expande)
     const names = ['overview','section','all'];
     document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i] === 'section'));
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
@@ -1341,17 +1414,19 @@ function showSectionTab(key) {
   }
 }
 
-function renderSectionList(key) {
-  const incs = cellIncidents(key).sort((a,b) => new Date(b.date) - new Date(a.date));
+function renderSectionList(id) {
+  const def  = getSectorDef(id);
+  const name = def ? def.name : id;
+  const incs = sectorIncidents(id).sort((a,b) => new Date(b.date) - new Date(a.date));
   const el   = document.getElementById('section-incidents');
-  const addBtn = `<button class="btn-primary" style="width:100%;margin-bottom:8px" onclick="openModal('${key}')">+ Nueva incidencia en ${key}</button>`;
-  if (!incs.length) { el.innerHTML = addBtn + '<div class="empty">Sin incidencias.</div>'; return; }
+  const addBtn = `<button class="btn-primary" style="width:100%;margin-bottom:8px" onclick="openModal('${id}')">+ Nueva incidencia en ${escHtml(name)}</button>`;
+  if (!incs.length) { el.innerHTML = addBtn + '<div class="empty">Sin incidencias en este sector.</div>'; return; }
   el.innerHTML = addBtn + incs.map(i => `
     <div class="incident-card ${i.severity}">
       <div class="inc-header">
         <div style="flex:1;min-width:0">
           <div class="inc-title">${escHtml(i.desc)}</div>
-          <div class="inc-meta">${formatDate(i.date)}</div>
+          <div class="inc-meta">📅 ${formatDate(i.date)}</div>
         </div>
         <div class="inc-actions">
           <span class="badge ${i.severity}">${i.severity.toUpperCase()}</span>
@@ -1362,8 +1437,33 @@ function renderSectionList(key) {
           </div>
         </div>
       </div>
-      ${i.notes ? `<div class="inc-desc">${escHtml(i.notes)}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:7px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          ${i.edificio  ? `<div class="inc-meta">🏢 ${escHtml(i.edificio)}</div>` : ''}
+          ${i.ubicacion ? `<div class="inc-meta">📍 ${escHtml(i.ubicacion)}</div>` : ''}
+          ${(i.fuente || i.guardia) ? `<div class="inc-meta">${i.fuente ? '👤 '+escHtml(i.fuente) : ''}${i.fuente && i.guardia ? ' · ' : ''}${i.guardia ? '🛡 '+escHtml(i.guardia) : ''}</div>` : ''}
+          ${i.notes ? `<div class="inc-desc">${escHtml(i.notes)}</div>` : ''}
+        </div>
+        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="window.open('${i.fotoUrl}','_blank')" title="Ver foto">` : ''}
+      </div>
     </div>`).join('');
+}
+
+function renderSectorLegend() {
+  const el = document.getElementById('sector-legend-list');
+  if (!el) return;
+  el.innerHTML = SECTOR_DEFS.map(def => {
+    const total  = sectorIncidents(def.id).length;
+    const active = incidents.filter(i => i.cell === def.id && (i.status === 'abierta' || i.status === 'en_reparacion')).length;
+    const badge = total
+      ? `<span style="margin-left:auto;background:${active ? '#ef4444' : '#64748b'};color:#fff;border-radius:10px;padding:0 6px;font-size:0.66rem;font-weight:700;line-height:1.6">${total}</span>`
+      : '';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer;border-radius:4px" onclick="jumpToSector('${def.id}')" title="${def.desc}">
+      <span style="width:10px;height:10px;border-radius:2px;background:${def.color};flex-shrink:0;display:inline-block"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${def.name}</span>
+      ${badge}
+    </div>`;
+  }).join('');
 }
 
 function renderAllList() {
@@ -1376,17 +1476,27 @@ function renderAllList() {
   const el = document.getElementById('all-incidents');
   if (!list.length) { el.innerHTML = '<div class="empty">No hay incidencias.</div>'; return; }
   el.innerHTML = list.map(i => `
-    <div class="all-list-item ${i.severity}" onclick="jumpToCell('${i.cell}')">
+    <div class="all-list-item ${i.severity}" onclick="jumpToSector('${i.cell}')">
       <div class="row">
-        <span class="section-tag">§ ${i.cell}</span>
+        <span class="section-tag">§ ${escHtml(getSectorName(i.cell))}</span>
         <div style="display:flex;gap:3px;align-items:center">
           <span class="badge ${i.severity}">${i.severity.toUpperCase()}</span>
           <span class="badge ${i.status}">${statusLabel(i.status)}</span>
           <button class="icon-btn edit" onclick="event.stopPropagation();openEditModal('${i.id}')">✏</button>
         </div>
       </div>
-      <div class="desc">${escHtml(i.desc)}</div>
-      <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">${formatDate(i.date)}</div>
+      <div style="display:flex;gap:8px;margin-top:4px;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div class="desc">${escHtml(i.desc)}</div>
+          <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">
+            📅 ${formatDate(i.date)}
+            ${i.edificio  ? ` · 🏢 ${escHtml(i.edificio)}`  : ''}
+            ${i.ubicacion ? ` · 📍 ${escHtml(i.ubicacion)}` : ''}
+          </div>
+          ${(i.fuente||i.guardia) ? `<div style="font-size:0.67rem;color:var(--text-muted);margin-top:1px">${i.fuente?'👤 '+escHtml(i.fuente):''}${i.fuente&&i.guardia?' · ':''}${i.guardia?'🛡 '+escHtml(i.guardia):''}</div>` : ''}
+        </div>
+        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="event.stopPropagation();window.open('${i.fotoUrl}','_blank')" title="Ver foto">` : ''}
+      </div>
     </div>`).join('');
 }
 
@@ -1396,36 +1506,36 @@ function updateStats() {
   document.getElementById('stat-repair').textContent = incidents.filter(i => i.status === 'en_reparacion').length;
   document.getElementById('stat-closed').textContent = incidents.filter(i => i.status === 'cerrada').length;
   renderAllList();
-  if (selectedCell) renderSectionList(selectedCell);
+  renderSectorLegend();
+  if (selectedSector) renderSectionList(selectedSector);
 }
 
-function jumpToCell(key) {
-  selectedCell = key;
+function jumpToSector(id) {
+  selectedSector = id;
   redrawOverlay();
-  showSectionTab(key);
-  if (terminalPolygon.length >= 3) {
-    const c = key.charCodeAt(0) - 65;
-    const r = parseInt(key.slice(1)) - 1;
-    const center = getCellCenter(r, c, getZoneBbox());
-    map.setView([center.lat, center.lng], Math.max(map.getZoom(), 19), { animate: true });
-    flashCell(key);
+  showSectionTab(id);
+  const poly = sectorPolygons[id];
+  if (poly && poly.length >= 3) {
+    const lats = poly.map(p => p.lat), lngs = poly.map(p => p.lng);
+    const clat = (Math.max(...lats) + Math.min(...lats)) / 2;
+    const clng = (Math.max(...lngs) + Math.min(...lngs)) / 2;
+    map.setView([clat, clng], Math.max(map.getZoom(), 19), { animate: true });
+    flashSector(id);
   }
 }
 
-function flashCell(key) {
-  if (terminalPolygon.length < 3) return;
-  const bbox = getZoneBbox();
-  const c = key.charCodeAt(0) - 65;
-  const r = parseInt(key.slice(1)) - 1;
+function flashSector(id) {
+  const poly = sectorPolygons[id];
+  if (!poly || poly.length < 3) return;
   let step = 0;
   function draw() {
     redrawOverlay();
     if (step < 6) {
-      const px = getCellPx(r, c, bbox);
+      const pts = poly.map(p => latlng2px(p));
       const alpha = step % 2 === 0 ? 0.95 : 0.15;
       ctx.beginPath();
-      ctx.moveTo(px.nw.x, px.nw.y); ctx.lineTo(px.ne.x, px.ne.y);
-      ctx.lineTo(px.se.x, px.se.y); ctx.lineTo(px.sw.x, px.sw.y);
+      ctx.moveTo(pts[0].x, pts[0].y);
+      pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
       ctx.closePath();
       ctx.strokeStyle = `rgba(232,160,0,${alpha})`;
       ctx.lineWidth = 3;
@@ -1439,31 +1549,72 @@ function flashCell(key) {
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 let editingCell = null, editingIncidentId = null;
+// 'editingCell' stores the sector id (TS-PREB-1, etc.) for the incident being edited/created
+
+function resetPhotoUI(existingUrl) {
+  const placeholder = document.getElementById('photo-placeholder');
+  const previewImg  = document.getElementById('photo-preview-img');
+  const changeHint  = document.getElementById('photo-change-hint');
+  document.getElementById('f-foto').value = '';
+  if (existingUrl) {
+    previewImg.src    = existingUrl;
+    previewImg.style.display = 'block';
+    placeholder.style.display = 'none';
+    changeHint.style.display  = 'block';
+  } else {
+    previewImg.style.display = 'none';
+    placeholder.style.display = '';
+    changeHint.style.display  = 'none';
+  }
+}
+
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('photo-preview-img').src = e.target.result;
+    document.getElementById('photo-preview-img').style.display = 'block';
+    document.getElementById('photo-placeholder').style.display = 'none';
+    document.getElementById('photo-change-hint').style.display = 'block';
+    document.getElementById('photo-change-hint').textContent   = '✓ Foto seleccionada · Tocar para cambiar';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
 
 function openModal(key) {
   editingCell = key; editingIncidentId = null;
-  document.getElementById('modal-title').textContent = `Nueva incidencia — Sección ${key}`;
+  const sName = getSectorName(key);
+  document.getElementById('modal-title').textContent = `Nueva incidencia — ${sName}`;
   const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  document.getElementById('f-date').value     = now.toISOString().slice(0,16);
-  document.getElementById('f-desc').value     = '';
-  document.getElementById('f-severity').value = 'media';
-  document.getElementById('f-status').value   = 'abierta';
-  document.getElementById('f-notes').value    = '';
+  document.getElementById('f-date').value      = now.toISOString().slice(0,16);
+  document.getElementById('f-desc').value      = '';
+  document.getElementById('f-edificio').value  = '';
+  document.getElementById('f-ubicacion').value = '';
+  document.getElementById('f-fuente').value    = '';
+  document.getElementById('f-guardia').value   = '';
+  document.getElementById('f-severity').value  = 'media';
+  document.getElementById('f-status').value    = 'abierta';
+  document.getElementById('f-notes').value     = '';
+  resetPhotoUI(null);
   document.getElementById('modal').classList.add('open');
-  setTimeout(() => document.getElementById('f-desc').focus(), 80);
+  setTimeout(() => document.getElementById('f-date').focus(), 80);
 }
 
 function openEditModal(id) {
   const inc = incidents.find(i => i.id === id); if (!inc) return;
   editingCell = inc.cell; editingIncidentId = id;
-  document.getElementById('modal-title').textContent = `Editar — Sección ${inc.cell}`;
-  document.getElementById('f-desc').value     = inc.desc;
-  document.getElementById('f-date').value     = inc.date;
-  document.getElementById('f-severity').value = inc.severity;
-  document.getElementById('f-status').value   = inc.status;
-  document.getElementById('f-notes').value    = inc.notes || '';
+  document.getElementById('modal-title').textContent = `Editar — ${getSectorName(inc.cell)}`;
+  document.getElementById('f-date').value      = inc.date;
+  document.getElementById('f-desc').value      = inc.desc;
+  document.getElementById('f-edificio').value  = inc.edificio  || '';
+  document.getElementById('f-ubicacion').value = inc.ubicacion || '';
+  document.getElementById('f-fuente').value    = inc.fuente    || '';
+  document.getElementById('f-guardia').value   = inc.guardia   || '';
+  document.getElementById('f-severity').value  = inc.severity;
+  document.getElementById('f-status').value    = inc.status;
+  document.getElementById('f-notes').value     = inc.notes     || '';
+  resetPhotoUI(inc.fotoUrl || null);
   document.getElementById('modal').classList.add('open');
-  setTimeout(() => document.getElementById('f-desc').focus(), 80);
 }
 
 function closeModal() {
@@ -1474,27 +1625,57 @@ function closeModal() {
 async function saveIncident() {
   const desc = document.getElementById('f-desc').value.trim();
   if (!desc) { alert('La descripción es obligatoria.'); return; }
+
   const cell = editingCell;
+  const file = document.getElementById('f-foto').files[0];
+
   const data = {
     cell,
     desc,
-    date:     document.getElementById('f-date').value,
-    severity: document.getElementById('f-severity').value,
-    status:   document.getElementById('f-status').value,
-    notes:    document.getElementById('f-notes').value.trim(),
+    date:      document.getElementById('f-date').value,
+    edificio:  document.getElementById('f-edificio').value.trim(),
+    ubicacion: document.getElementById('f-ubicacion').value.trim(),
+    fuente:    document.getElementById('f-fuente').value.trim(),
+    guardia:   document.getElementById('f-guardia').value.trim(),
+    severity:  document.getElementById('f-severity').value,
+    status:    document.getElementById('f-status').value,
+    notes:     document.getElementById('f-notes').value.trim(),
     updatedAt: new Date().toISOString()
   };
+
+  // Conservar foto existente si no se seleccionó una nueva
+  if (editingIncidentId) {
+    const existing = incidents.find(i => i.id === editingIncidentId);
+    if (existing?.fotoUrl && !file) data.fotoUrl = existing.fotoUrl;
+  }
+
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.textContent = file ? '⬆ Subiendo foto…' : 'Guardando…';
+  saveBtn.disabled = true;
+
   try {
     if (editingIncidentId) {
+      if (file) {
+        const snap = await storage.ref(`incidents/${editingIncidentId}/foto`).put(file);
+        data.fotoUrl = await snap.ref.getDownloadURL();
+      }
       await db.collection(COL_INC).doc(editingIncidentId).update(data);
     } else {
-      await db.collection(COL_INC).add(data);
+      const docRef = await db.collection(COL_INC).add(data);
+      if (file) {
+        const snap = await storage.ref(`incidents/${docRef.id}/foto`).put(file);
+        await docRef.update({ fotoUrl: await snap.ref.getDownloadURL() });
+      }
     }
     closeModal();
+    selectedSector = cell;
     showSectionTab(cell);
   } catch(e) {
     console.error('Error guardando incidencia:', e);
-    alert('Error al guardar. Verificá tu conexión.');
+    alert('Error al guardar. Verificá tu conexión a internet.');
+  } finally {
+    saveBtn.textContent = 'Guardar';
+    saveBtn.disabled = false;
   }
 }
 
@@ -1510,13 +1691,12 @@ async function deleteIncident(id) {
 
 // ── FAB ───────────────────────────────────────────────────────────────────────
 function fabAction() {
-  if (selectedCell) {
-    openModal(selectedCell);
+  if (selectedSector) {
+    openModal(selectedSector);
   } else {
-    // Open the section tab to prompt selection
     if (isMobile()) toggleMobileSheet(true);
     showTab('overview');
-    alert('Primero seleccioná una celda del mapa tocándola.');
+    alert('Primero seleccioná un sector del mapa tocándolo.');
   }
 }
 
@@ -1548,9 +1728,12 @@ function setFilter(f, btn) {
 }
 function exportCSV() {
   if (!incidents.length) { alert('No hay incidencias.'); return; }
-  const header = ['Sección','Descripción','Fecha','Severidad','Estado','Observaciones'];
-  const rows   = incidents.map(i => [i.cell, i.desc, i.date, i.severity, statusLabel(i.status), i.notes]);
-  const csv    = [header, ...rows].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const header = ['Sector','ID Sector','Fecha','Edificio','Ubicación','Fuente','Guardia','Descripción','Severidad','Estado','Observaciones','Foto URL'];
+  const rows   = incidents.map(i => [
+    getSectorName(i.cell), i.cell, i.date, i.edificio||'', i.ubicacion||'', i.fuente||'', i.guardia||'',
+    i.desc, i.severity, statusLabel(i.status), i.notes||'', i.fotoUrl||''
+  ]);
+  const csv = [header, ...rows].map(r => r.map(v => `"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = `incidencias_techo_${new Date().toISOString().slice(0,10)}.csv`;
@@ -1570,13 +1753,14 @@ document.addEventListener('keydown', e => {
   if (e.key === 'e' || e.key === 'E') { rotateCW();  return; }
   if (e.key === 'n' || e.key === 'N') { resetNorth(); return; }
   if (e.key === 'Escape') {
-    if (zoneMode) {
-      zoneMode = false; draftPolygon = []; mouseLatLng = null;
-      document.getElementById('zone-btn').classList.remove('active');
-      document.getElementById('zone-btn').textContent = '✏ Definir zona del techo';
-      document.getElementById('zone-hint').classList.remove('on');
-      document.getElementById('map').style.cursor = '';
-      map.doubleClickZoom.enable();
+    if (sectorDrawMode) {
+      sectorDrawMode = null; draftSector = []; mouseLatLng = null;
+      document.getElementById('sector-draw-btn').textContent = '✏ Dibujar área';
+      document.getElementById('sector-draw-btn').classList.remove('active');
+      document.getElementById('sector-hint').classList.remove('on');
+      const hud = document.getElementById('setup-draw-hud');
+      if (hud) hud.style.display = 'none';
+      document.getElementById('map').style.cursor = ''; map.doubleClickZoom.enable();
       redrawOverlay(); return;
     }
     closeModal();
@@ -1612,23 +1796,24 @@ document.getElementById('modal').addEventListener('click', e => {
     sidebar.style.transform  = '';
     const dy = e.changedTouches[0].clientY - startY;
     if      (dy < -40) setSheetState('expanded');
-    else if (dy >  40) setSheetState(selectedCell ? 'peek' : 'collapsed');
-    else               setSheetState(startState === 'expanded' ? (selectedCell ? 'peek' : 'collapsed') : 'expanded');
+    else if (dy >  40) setSheetState(selectedSector ? 'peek' : 'collapsed');
+    else               setSheetState(startState === 'expanded' ? (selectedSector ? 'peek' : 'collapsed') : 'expanded');
   }, { passive: true });
 })();
 
-// ── Cell chip ─────────────────────────────────────────────────────────────────
-function updateCellChip(key) {
+// ── Sector chip (overlay sobre el mapa) ──────────────────────────────────────
+function updateSectorChip(id) {
   const chip = document.getElementById('cell-chip');
   const hint = document.getElementById('map-hint');
-  if (!key) {
+  if (!id) {
     chip.classList.remove('visible');
     if (hint) hint.classList.remove('hidden');
     return;
   }
-  const incs   = cellIncidents(key);
+  const def    = getSectorDef(id);
+  const incs   = sectorIncidents(id);
   const active = incs.filter(i => i.status !== 'cerrada').length;
-  document.getElementById('cell-chip-label').textContent = `Sección ${key}`;
+  document.getElementById('cell-chip-label').textContent = def ? def.name : `Sector ${id}`;
   document.getElementById('cell-chip-sub').textContent   =
     incs.length === 0 ? 'Sin incidencias'
     : `${incs.length} incidencia${incs.length > 1 ? 's' : ''}${active > 0 ? ` · ${active} activa${active > 1 ? 's' : ''}` : ''}`;
@@ -1644,23 +1829,22 @@ map.on('dragstart', () => {
 // ── Init con Firestore ────────────────────────────────────────────────────────
 async function initApp() {
   try {
-    // 1. Cargar zona del techo
-    const zoneDoc = await db.collection(COL_CONFIG).doc(DOC_ZONE).get();
-    if (zoneDoc.exists) {
-      terminalPolygon = zoneDoc.data().polygon || [];
+    // 1. Cargar polígonos reales desde Firestore (sobreescribe los aproximados)
+    const sectDoc = await db.collection(COL_CONFIG).doc(DOC_SECTORS).get();
+    if (sectDoc.exists) {
+      const data = sectDoc.data();
+      if (data && data.polygons) {
+        for (const [id, poly] of Object.entries(data.polygons)) {
+          if (Array.isArray(poly) && poly.length >= 3) sectorPolygons[id] = poly;
+        }
+      }
     }
 
-    // 2. Cargar configuración de grilla
-    const gridDoc = await db.collection(COL_CONFIG).doc(DOC_GRID).get();
-    if (gridDoc.exists) {
-      const g = gridDoc.data();
-      if (g.cols) document.getElementById('cols').value = g.cols;
-      if (g.rows) document.getElementById('rows').value = g.rows;
-      if (g.locked) applyGridLockUI(g.cols, g.rows);
-      if (g.gridAngle != null) {
-        gridAngle = g.gridAngle;
-        document.getElementById('grid-angle-label').textContent = Math.round(gridAngle) + '°';
-      }
+    // 2. Mostrar controles de configuración si ?setup=1
+    if (IS_SETUP) {
+      document.getElementById('setup-area').style.display = 'flex';
+      document.getElementById('sep-setup').style.display  = '';
+      populateSectorSelect();
     }
 
     // 3. Escuchar incidencias en tiempo real
@@ -1668,19 +1852,17 @@ async function initApp() {
       incidents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       updateStats();
       redrawOverlay();
-      if (selectedCell) { renderSectionList(selectedCell); updateCellChip(selectedCell); }
+      if (selectedSector) { renderSectionList(selectedSector); updateSectorChip(selectedSector); }
     }, err => {
       console.error('Error en onSnapshot:', err);
     });
 
-    updateZoneUI();
     map.whenReady(() => { resizeCanvas(); redrawOverlay(); drawCompass(); });
 
   } catch(e) {
     console.error('Error al inicializar:', e);
     alert('No se pudo conectar con la base de datos.\nVerificá tu conexión a internet.');
   } finally {
-    // Ocultar pantalla de carga
     const ov = document.getElementById('loading-overlay');
     ov.classList.add('fade-out');
     setTimeout(() => ov.style.display = 'none', 450);
