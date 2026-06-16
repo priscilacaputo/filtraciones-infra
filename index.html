@@ -1588,7 +1588,7 @@ function openModal(key) {
   const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
   document.getElementById('f-date').value      = now.toISOString().slice(0,16);
   document.getElementById('f-desc').value      = '';
-  document.getElementById('f-edificio').value  = '';
+  document.getElementById('f-edificio').value  = sName;
   document.getElementById('f-ubicacion').value = '';
   document.getElementById('f-fuente').value    = '';
   document.getElementById('f-guardia').value   = '';
