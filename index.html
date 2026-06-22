@@ -277,6 +277,20 @@
   .tab-content { display: none; flex: 1; overflow-y: auto; padding: 12px; }
   .tab-content.active { display: block; }
   #tab-weather.active { display: flex !important; }
+  #tab-weather.wx-fullscreen {
+    position: fixed !important; inset: 0 !important; z-index: 4000 !important;
+    width: 100vw !important; height: 100dvh !important;
+    border-radius: 0 !important; border: none !important;
+    background: var(--bg-panel) !important;
+  }
+  .wx-fs-btn {
+    margin-left: auto; background: none; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 4px 9px; font-size: 0.8rem; cursor: pointer; flex-shrink: 0;
+    transition: border-color .15s, color .15s;
+  }
+  .wx-fs-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .wx-fullscreen .wx-fs-btn { color: var(--accent); border-color: var(--accent); }
 
   .legend h3 {
     font-size: 0.62rem; font-weight: 700; margin-bottom: 8px;
@@ -1434,6 +1448,7 @@
             <input type="date" id="wx-to" class="wx-filter-input" placeholder="Hasta"
               onchange="onWxRangeChange()">
             <button class="wx-filter-btn" onclick="clearWxFilter()" id="wx-clear-btn" style="display:none">✕ Limpiar</button>
+            <button class="wx-fs-btn" id="wx-fs-btn" onclick="toggleWxFullscreen()" title="Pantalla completa">⛶</button>
           </div>
         </div>
         <div id="weather-analysis-content" style="flex:1;overflow-y:auto;padding:12px">
@@ -2623,6 +2638,23 @@ function onWxRangeChange() {
   wxDayDate = null;
   if (wxChartHourly) { wxChartHourly.destroy(); wxChartHourly = null; }
   renderWeatherAnalysis();
+}
+
+function toggleWxFullscreen() {
+  const tab = document.getElementById('tab-weather');
+  const btn = document.getElementById('wx-fs-btn');
+  const isFs = tab.classList.toggle('wx-fullscreen');
+  btn.textContent = isFs ? '✕' : '⛶';
+  btn.title = isFs ? 'Salir de pantalla completa' : 'Pantalla completa';
+  // ESC key to exit
+  if (isFs) {
+    document.addEventListener('keydown', _wxEscHandler);
+  } else {
+    document.removeEventListener('keydown', _wxEscHandler);
+  }
+}
+function _wxEscHandler(e) {
+  if (e.key === 'Escape') toggleWxFullscreen();
 }
 
 function clearWxFilter() {
