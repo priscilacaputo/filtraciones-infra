@@ -276,6 +276,7 @@
 
   .tab-content { display: none; flex: 1; overflow-y: auto; padding: 12px; }
   .tab-content.active { display: block; }
+  #tab-weather.active { display: flex !important; }
 
   .legend h3 {
     font-size: 0.62rem; font-weight: 700; margin-bottom: 8px;
@@ -435,6 +436,48 @@
   .photo-change-hint {
     text-align: center; padding: 5px; font-size: 0.68rem;
     color: var(--text-muted); background: var(--bg-card);
+  }
+  .photo-multi-grid {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 10px;
+  }
+  .photo-multi-item {
+    position: relative; width: 90px; height: 70px; flex-shrink: 0;
+  }
+  .photo-multi-item img {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 6px;
+    border: 2px solid var(--border); cursor: zoom-in;
+    transition: border-color .15s;
+  }
+  .photo-multi-item img:hover { border-color: var(--accent); }
+  .photo-remove-btn {
+    position: absolute; top: -6px; right: -6px;
+    background: #e74c3c; color: #fff; border: none; border-radius: 50%;
+    width: 18px; height: 18px; font-size: 0.65rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1; padding: 0; z-index: 1;
+  }
+  .photo-add-more {
+    width: 100%; text-align: center; padding: 7px; font-size: 0.75rem;
+    color: var(--accent); cursor: pointer; border-top: 1px solid var(--border);
+  }
+  .photo-add-more:hover { opacity: 0.75; }
+  .upd-foto-btn {
+    background: var(--bg-card); border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px;
+    padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+    white-space: nowrap; flex-shrink: 0;
+    transition: border-color .15s, color .15s;
+  }
+  .upd-foto-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .upd-foto-preview {
+    display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0;
+  }
+  .upd-foto-mini {
+    width: 50px; height: 40px; object-fit: cover; border-radius: 4px;
+    border: 1px solid var(--border); cursor: zoom-in;
+  }
+  .upd-entry-photos {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
   }
   .photo-thumb {
     width: 80px; height: 60px; object-fit: cover; border-radius: 6px;
@@ -669,6 +712,101 @@
     font-size: 0.63rem; font-weight: 700; white-space: nowrap;
   }
   .wx-note { font-size: 0.67rem; color: var(--text-muted); font-style: italic; margin-top: 6px; }
+
+  /* ── Filtros de clima ───────────────────────────────────── */
+  .wx-filter-bar {
+    padding: 10px 12px 8px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 7px;
+    flex-shrink: 0;
+  }
+  .wx-filter-row {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .wx-filter-label {
+    font-size: 0.65rem; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.06em; min-width: 72px; flex-shrink: 0;
+  }
+  .wx-filter-input {
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-size: 0.72rem;
+    padding: 4px 7px; min-width: 0; flex: 1; max-width: 140px;
+    color-scheme: dark;
+  }
+  .wx-filter-input:focus { outline: none; border-color: var(--accent); }
+  .wx-filter-sep { color: var(--text-muted); font-size: 0.7rem; flex-shrink: 0; }
+  .wx-filter-btn {
+    background: var(--bg-input); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text-muted); font-size: 0.7rem;
+    padding: 4px 10px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: border-color .15s, color .15s;
+  }
+  .wx-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .wx-filter-btn.primary {
+    background: var(--accent); color: var(--primary);
+    border-color: var(--accent); font-weight: 700;
+  }
+  .wx-filter-btn.primary:hover { opacity: 0.85; color: var(--primary); }
+  .wx-filter-active-tag {
+    font-size: 0.65rem; background: var(--accent)22;
+    color: var(--accent); border: 1px solid var(--accent)55;
+    border-radius: 20px; padding: 2px 8px;
+  }
+  /* ── Detalle de día específico ─────────────────────────── */
+  .wx-day-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .wx-day-back {
+    background: none; border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 6px; padding: 4px 10px; font-size: 0.72rem; cursor: pointer;
+  }
+  .wx-day-back:hover { border-color: var(--accent); color: var(--accent); }
+  .wx-day-title {
+    font-size: 0.95rem; font-weight: 800; color: var(--text);
+  }
+  .wx-day-subtitle { font-size: 0.68rem; color: var(--text-muted); }
+  .wx-hour-table {
+    width: 100%; border-collapse: collapse; font-size: 0.67rem;
+    margin-top: 8px;
+  }
+  .wx-hour-table th {
+    color: var(--text-muted); font-weight: 600; padding: 3px 4px;
+    text-align: center; border-bottom: 1px solid var(--border);
+  }
+  .wx-hour-table td {
+    padding: 4px 4px; text-align: center;
+    border-bottom: 1px solid var(--border)55;
+  }
+  .wx-hour-table tr:last-child td { border-bottom: none; }
+  .wx-hour-table tr.wx-hour-highlight td { background: var(--accent)11; }
+  .wx-hour-arrow {
+    display: inline-block; font-size: 0.85rem; line-height: 1;
+  }
+  /* ── Chips de fechas ────────────────────────────────────── */
+  .wx-date-chips {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+  }
+  .wx-date-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--bg-card);
+    cursor: pointer; font-size: 0.72rem; color: var(--text);
+    transition: border-color .15s, background .15s; white-space: nowrap;
+    font-family: inherit;
+  }
+  .wx-date-chip:hover { border-color: var(--accent); background: var(--accent)18; }
+  .wx-date-chip.active { border-color: var(--accent); background: var(--accent)28; color: var(--accent); font-weight: 700; }
+  .wx-date-chip.wx-rain { border-color: #3b82f660; }
+  .wx-date-chip.wx-wind { border-color: #f59e0b60; }
+  .wx-date-chip.wx-dry  { border-color: #22c55e60; }
+  .wx-chip-count {
+    background: var(--bg-input); border-radius: 10px;
+    padding: 1px 5px; font-size: 0.64rem; color: var(--text-muted);
+  }
+  .wx-no-dates {
+    font-size: 0.75rem; color: var(--text-muted); font-style: italic; padding: 6px 0;
+  }
 
   /* Form section divider */
   .form-section-title {
@@ -1286,8 +1424,19 @@
         <div id="all-incidents"></div>
       </div>
 
-      <div class="tab-content" id="tab-weather">
-        <div id="weather-analysis-content">
+      <div class="tab-content" id="tab-weather" style="flex-direction:column;padding:0;overflow:hidden">
+        <div class="wx-filter-bar">
+          <div class="wx-filter-row">
+            <span class="wx-filter-label">Período</span>
+            <input type="date" id="wx-from" class="wx-filter-input" placeholder="Desde"
+              onchange="onWxRangeChange()">
+            <span class="wx-filter-sep">→</span>
+            <input type="date" id="wx-to" class="wx-filter-input" placeholder="Hasta"
+              onchange="onWxRangeChange()">
+            <button class="wx-filter-btn" onclick="clearWxFilter()" id="wx-clear-btn" style="display:none">✕ Limpiar</button>
+          </div>
+        </div>
+        <div id="weather-analysis-content" style="flex:1;overflow-y:auto;padding:12px">
           <div class="empty" style="padding:24px 0">Cargando datos del clima…</div>
         </div>
       </div>
@@ -1363,15 +1512,16 @@
 
     <div class="form-section-title">📷 Foto</div>
 
-    <div class="photo-area" id="photo-area" onclick="document.getElementById('f-foto').click()">
-      <input type="file" id="f-foto" accept="image/*" capture="environment"
-             style="display:none" onchange="previewPhoto(this)">
-      <div id="photo-placeholder" class="photo-placeholder">
+    <div class="photo-area" id="photo-area">
+      <input type="file" id="f-foto" accept="image/*" multiple
+             style="display:none" onchange="previewPhotos(this)">
+      <div id="photo-placeholder" class="photo-placeholder" onclick="document.getElementById('f-foto').click()">
         <span class="ph-icon">📷</span>
-        <span>Tocar para tomar o subir foto</span>
+        <span>Tocar para agregar fotos</span>
       </div>
-      <img id="photo-preview-img" class="photo-preview-img" style="display:none" src="" alt="preview">
-      <div id="photo-change-hint" class="photo-change-hint" style="display:none">✓ Foto cargada · Tocar para cambiar</div>
+      <div id="photo-multi-grid" class="photo-multi-grid" style="display:none"></div>
+      <div id="photo-add-more" class="photo-add-more" style="display:none"
+           onclick="document.getElementById('f-foto').click()">+ Agregar más fotos</div>
     </div>
 
     <div class="form-section-title">📝 Descripción y estado</div>
@@ -1480,7 +1630,19 @@ const SECTOR_DEFS = [
   { id:'SL-1213',    name:'Sala 12-13',                       short:'S 12-13',    color:'#fb923c' },
   // ── PIR Nacional ─────────────────────────────────────────────────────────────
   { id:'OF-PSA',     name:'Oficinas PSA PIR Nacional',        short:'Of. PSA',    color:'#64748b' },
+  { id:'OF-PSA2',    name:'Oficina PSA',                      short:'Of. PSA',    color:'#475569' },
   { id:'PIR-NAC',    name:'PIR Nacional',                     short:'PIR Nac.',   color:'#3b82f6' },
+  // ── Mangas ───────────────────────────────────────────────────────────────────
+  { id:'MG-03',      name:'Manga 3',                          short:'Manga 3',    color:'#f97316' },
+  { id:'MG-04',      name:'Manga 4',                          short:'Manga 4',    color:'#f97316' },
+  { id:'MG-05',      name:'Manga 5',                          short:'Manga 5',    color:'#f97316' },
+  { id:'MG-06',      name:'Manga 6',                          short:'Manga 6',    color:'#f97316' },
+  { id:'MG-07',      name:'Manga 7',                          short:'Manga 7',    color:'#f97316' },
+  { id:'MG-08',      name:'Manga 8',                          short:'Manga 8',    color:'#f97316' },
+  { id:'MG-09',      name:'Manga 9',                          short:'Manga 9',    color:'#f97316' },
+  { id:'MG-10',      name:'Manga 10',                         short:'Manga 10',   color:'#f97316' },
+  { id:'MG-11',      name:'Manga 11',                         short:'Manga 11',   color:'#f97316' },
+  { id:'MG-12',      name:'Manga 12',                         short:'Manga 12',   color:'#f97316' },
   // ── Sector P 13-14 ───────────────────────────────────────────────────────────
   { id:'P-1314',     name:'P 13-14',                          short:'P 13-14',    color:'#c084fc' },
   { id:'PT-1314',    name:'Puente 13-14',                     short:'Pte 13-14',  color:'#a855f7' },
@@ -2022,7 +2184,7 @@ function renderSectionList(id) {
           ${(i.fuente || i.guardia) ? `<div class="inc-meta">${i.fuente ? '👤 '+escHtml(i.fuente) : ''}${i.fuente && i.guardia ? ' · ' : ''}${i.guardia ? '🛡 '+escHtml(i.guardia) : ''}</div>` : ''}
           ${i.notes ? `<div class="inc-desc">${escHtml(i.notes)}</div>` : ''}
         </div>
-        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="openLightbox('${i.fotoUrl}')" title="Ver foto completa">` : ''}
+        ${renderPhotoThumbs(i, false)}
       </div>
       ${renderUpdatesThread(i)}
     </div>`).join('');
@@ -2074,7 +2236,7 @@ function renderAllList() {
           </div>
           ${(i.fuente||i.guardia) ? `<div style="font-size:0.67rem;color:var(--text-muted);margin-top:1px">${i.fuente?'👤 '+escHtml(i.fuente):''}${i.fuente&&i.guardia?' · ':''}${i.guardia?'🛡 '+escHtml(i.guardia):''}</div>` : ''}
         </div>
-        ${i.fotoUrl ? `<img class="photo-thumb" src="${i.fotoUrl}" alt="foto" onclick="event.stopPropagation();openLightbox('${i.fotoUrl}')" title="Ver foto completa">` : ''}
+        ${renderPhotoThumbs(i, true)}
       </div>
     </div>`).join('');
 }
@@ -2128,36 +2290,69 @@ function flashSector(id) {
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 let editingCell = null, editingIncidentId = null;
-// 'editingCell' stores the sector id (TS-PREB-1, etc.) for the incident being edited/created
+// 'editingCell' stores the sector id for the incident being edited/created
 
-function resetPhotoUI(existingUrl) {
-  const placeholder = document.getElementById('photo-placeholder');
-  const previewImg  = document.getElementById('photo-preview-img');
-  const changeHint  = document.getElementById('photo-change-hint');
+// Multi-photo state for the incident modal
+let pendingPhotos    = []; // [{file, previewUrl}]
+let existingPhotoUrls = []; // string[] — already saved URLs (edit mode)
+
+function resetPhotoUI(existingData) {
+  pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
+  pendingPhotos = [];
   document.getElementById('f-foto').value = '';
-  if (existingUrl) {
-    previewImg.src    = existingUrl;
-    previewImg.style.display = 'block';
-    placeholder.style.display = 'none';
-    changeHint.style.display  = 'block';
+  if (Array.isArray(existingData)) {
+    existingPhotoUrls = [...existingData];
+  } else if (typeof existingData === 'string' && existingData) {
+    existingPhotoUrls = [existingData];
   } else {
-    previewImg.style.display = 'none';
-    placeholder.style.display = '';
-    changeHint.style.display  = 'none';
+    existingPhotoUrls = [];
   }
+  renderPhotoGrid();
 }
 
-function previewPhoto(input) {
-  if (!input.files || !input.files[0]) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('photo-preview-img').src = e.target.result;
-    document.getElementById('photo-preview-img').style.display = 'block';
-    document.getElementById('photo-placeholder').style.display = 'none';
-    document.getElementById('photo-change-hint').style.display = 'block';
-    document.getElementById('photo-change-hint').textContent   = '✓ Foto seleccionada · Tocar para cambiar';
-  };
-  reader.readAsDataURL(input.files[0]);
+function renderPhotoGrid() {
+  const grid        = document.getElementById('photo-multi-grid');
+  const placeholder = document.getElementById('photo-placeholder');
+  const addMore     = document.getElementById('photo-add-more');
+  const total = existingPhotoUrls.length + pendingPhotos.length;
+  if (total === 0) {
+    grid.style.display = 'none'; grid.innerHTML = '';
+    placeholder.style.display = ''; addMore.style.display = 'none';
+    return;
+  }
+  placeholder.style.display = 'none'; addMore.style.display = '';
+  grid.style.display = '';
+  const existItems = existingPhotoUrls.map((url, i) => `
+    <div class="photo-multi-item">
+      <img src="${url}" onclick="openLightbox('${url}')">
+      <button class="photo-remove-btn" onclick="removeExistingPhoto(${i})" title="Quitar">✕</button>
+    </div>`).join('');
+  const pendItems = pendingPhotos.map((p, i) => `
+    <div class="photo-multi-item">
+      <img src="${p.previewUrl}">
+      <button class="photo-remove-btn" onclick="removePendingPhoto(${i})" title="Quitar">✕</button>
+    </div>`).join('');
+  grid.innerHTML = existItems + pendItems;
+}
+
+function previewPhotos(input) {
+  if (!input.files || !input.files.length) return;
+  for (const file of input.files) {
+    pendingPhotos.push({ file, previewUrl: URL.createObjectURL(file) });
+  }
+  input.value = '';
+  renderPhotoGrid();
+}
+
+function removeExistingPhoto(idx) {
+  existingPhotoUrls.splice(idx, 1);
+  renderPhotoGrid();
+}
+
+function removePendingPhoto(idx) {
+  URL.revokeObjectURL(pendingPhotos[idx].previewUrl);
+  pendingPhotos.splice(idx, 1);
+  renderPhotoGrid();
 }
 
 function openModal(key) {
@@ -2192,7 +2387,7 @@ function openEditModal(id) {
   document.getElementById('f-severity').value  = inc.severity;
   document.getElementById('f-status').value    = inc.status;
   document.getElementById('f-notes').value     = inc.notes     || '';
-  resetPhotoUI(inc.fotoUrl || null);
+  resetPhotoUI(inc.fotos || inc.fotoUrl || null);
   document.getElementById('modal').classList.add('open');
 }
 
@@ -2206,42 +2401,43 @@ async function saveIncident() {
   if (!desc) { alert('La descripción es obligatoria.'); return; }
 
   const cell = editingCell;
-  const file = document.getElementById('f-foto').files[0];
-
-  const data = {
-    cell,
-    desc,
-    date:      document.getElementById('f-date').value,
-    edificio:  document.getElementById('f-edificio').value.trim(),
-    ubicacion: document.getElementById('f-ubicacion').value.trim(),
-    fuente:    document.getElementById('f-fuente').value.trim(),
-    guardia:   document.getElementById('f-guardia').value.trim(),
-    severity:  document.getElementById('f-severity').value,
-    status:    document.getElementById('f-status').value,
-    notes:     document.getElementById('f-notes').value.trim(),
-    updatedAt: new Date().toISOString()
-  };
-
-  // Conservar foto existente si no se seleccionó una nueva
-  if (editingIncidentId) {
-    const existing = incidents.find(i => i.id === editingIncidentId);
-    if (existing?.fotoUrl && !file) data.fotoUrl = existing.fotoUrl;
-  }
-
   const saveBtn = document.getElementById('save-btn');
-  saveBtn.textContent = file ? '⬆ Subiendo foto…' : 'Guardando…';
   saveBtn.disabled = true;
 
   try {
+    // Upload any pending new photos
+    let uploadedUrls = [];
+    if (pendingPhotos.length > 0) {
+      saveBtn.textContent = `⬆ Subiendo ${pendingPhotos.length} foto(s)…`;
+      uploadedUrls = await Promise.all(pendingPhotos.map(p => uploadToCloudinary(p.file)));
+    } else {
+      saveBtn.textContent = 'Guardando…';
+    }
+
+    // Combine existing (kept by user) + newly uploaded
+    const fotos = [...existingPhotoUrls, ...uploadedUrls];
+
+    const data = {
+      cell,
+      desc,
+      date:      document.getElementById('f-date').value,
+      edificio:  document.getElementById('f-edificio').value.trim(),
+      ubicacion: document.getElementById('f-ubicacion').value.trim(),
+      fuente:    document.getElementById('f-fuente').value.trim(),
+      guardia:   document.getElementById('f-guardia').value.trim(),
+      severity:  document.getElementById('f-severity').value,
+      status:    document.getElementById('f-status').value,
+      notes:     document.getElementById('f-notes').value.trim(),
+      updatedAt: new Date().toISOString(),
+      fotos,
+      fotoUrl:   fotos[0] || null   // backward-compat for existing cards
+    };
+    if (!data.fotoUrl) delete data.fotoUrl;
+
     if (editingIncidentId) {
-      if (file) data.fotoUrl = await uploadToCloudinary(file);
       await db.collection(COL_INC).doc(editingIncidentId).update(data);
     } else {
-      const docRef = await db.collection(COL_INC).add(data);
-      if (file) {
-        const fotoUrl = await uploadToCloudinary(file);
-        await docRef.update({ fotoUrl });
-      }
+      await db.collection(COL_INC).add(data);
     }
     closeModal();
     selectedSector = cell;
@@ -2337,7 +2533,10 @@ function toggleActiveOnly() {
 // ── Análisis Climático ─────────────────────────────────────────────────────────
 const WX_LAT = -34.5592, WX_LON = -58.4161; // Aeroparque Jorge Newbery
 let wxCache = null;
-let wxChartTimeline = null, wxChartDonut = null;
+let wxChartTimeline = null, wxChartDonut = null, wxChartHourly = null;
+let wxFilterFrom = null, wxFilterTo = null; // rango personalizado
+let wxDayDate = null;                       // fecha de detalle específico
+const wxHourlyCache = {};                   // cache por fecha: { hours:[] }
 
 function wxLabel(precip, wind) {
   if (precip >= 15) return { icon: '⛈', label: 'Lluvia intensa',   color: '#3b82f6' };
@@ -2361,12 +2560,14 @@ function windDirArrow(deg) {
   </svg>`;
 }
 
-async function fetchWeatherForIncidents() {
-  if (!incidents.length) return null;
-  const dates = incidents.map(i => i.date?.slice(0,10)).filter(Boolean).sort();
-  const start = dates[0];
+async function fetchWeatherForIncidents(filteredIncs) {
+  const src = filteredIncs || incidents;
+  if (!src.length) return null;
   const todayStr = new Date().toISOString().slice(0,10);
-  const end = dates[dates.length-1] > todayStr ? todayStr : dates[dates.length-1];
+  const dates = src.map(i => i.date?.slice(0,10)).filter(Boolean).sort();
+  const start = wxFilterFrom || dates[0];
+  const endRaw = wxFilterTo   || dates[dates.length-1];
+  const end = endRaw > todayStr ? todayStr : endRaw;
   if (wxCache && wxCache.start === start && wxCache.end === end) return wxCache;
   const url = `https://archive-api.open-meteo.com/v1/archive`
     + `?latitude=${WX_LAT}&longitude=${WX_LON}`
@@ -2379,16 +2580,288 @@ async function fetchWeatherForIncidents() {
   const daily = {};
   (json.daily?.time || []).forEach((d, idx) => {
     daily[d] = {
-      precip:  json.daily.precipitation_sum[idx]           ?? 0,
-      wind:    json.daily.wind_speed_10m_max[idx]           ?? 0,
-      windDir: json.daily.wind_direction_10m_dominant[idx]  ?? null
+      precip:  json.daily.precipitation_sum[idx]          ?? 0,
+      wind:    json.daily.wind_speed_10m_max[idx]          ?? 0,
+      windDir: json.daily.wind_direction_10m_dominant[idx] ?? null
     };
   });
   wxCache = { start, end, daily };
   return wxCache;
 }
 
+async function fetchHourlyForDate(date) {
+  if (wxHourlyCache[date]) return wxHourlyCache[date];
+  const todayStr = new Date().toISOString().slice(0,10);
+  const apiBase = date <= todayStr
+    ? 'https://archive-api.open-meteo.com/v1/archive'
+    : 'https://api.open-meteo.com/v1/forecast';
+  const url = `${apiBase}?latitude=${WX_LAT}&longitude=${WX_LON}`
+    + `&start_date=${date}&end_date=${date}`
+    + `&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m`
+    + `&timezone=America%2FArgentina%2FBuenos_Aires`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  const hours = (json.hourly?.time || []).map((t, i) => ({
+    time:     t.slice(11,16),
+    temp:     json.hourly.temperature_2m?.[i]    ?? null,
+    precip:   json.hourly.precipitation?.[i]      ?? 0,
+    wind:     json.hourly.wind_speed_10m?.[i]     ?? 0,
+    windDir:  json.hourly.wind_direction_10m?.[i] ?? null,
+  }));
+  wxHourlyCache[date] = { hours };
+  return wxHourlyCache[date];
+}
+
+// ── Controladores del filtro ──────────────────────────────────────────────────
+function onWxRangeChange() {
+  wxFilterFrom = document.getElementById('wx-from').value || null;
+  wxFilterTo   = document.getElementById('wx-to').value   || null;
+  document.getElementById('wx-clear-btn').style.display =
+    (wxFilterFrom || wxFilterTo) ? '' : 'none';
+  wxCache = null;
+  wxDayDate = null;
+  if (wxChartHourly) { wxChartHourly.destroy(); wxChartHourly = null; }
+  renderWeatherAnalysis();
+}
+
+function clearWxFilter() {
+  wxFilterFrom = null; wxFilterTo = null; wxCache = null;
+  wxDayDate = null;
+  document.getElementById('wx-from').value = '';
+  document.getElementById('wx-to').value   = '';
+  document.getElementById('wx-clear-btn').style.display = 'none';
+  if (wxChartHourly) { wxChartHourly.destroy(); wxChartHourly = null; }
+  renderWeatherAnalysis();
+}
+
+function analyzeDay(date) {
+  if (!date) return;
+  wxDayDate = date;
+  renderDayDetail(date);
+}
+
+function clearDayDetail() {
+  wxDayDate = null;
+  if (wxChartHourly) { wxChartHourly.destroy(); wxChartHourly = null; }
+  renderWeatherAnalysis();
+}
+
+// ── Detalle de un día específico ──────────────────────────────────────────────
+async function renderDayDetail(date) {
+  const el = document.getElementById('weather-analysis-content');
+  if (!el) return;
+  if (wxChartHourly)   { wxChartHourly.destroy();   wxChartHourly   = null; }
+  if (wxChartTimeline) { wxChartTimeline.destroy();  wxChartTimeline = null; }
+  if (wxChartDonut)    { wxChartDonut.destroy();     wxChartDonut    = null; }
+
+  const [y, m, d2] = date.split('-');
+  const dateLabel = new Date(+y, +m-1, +d2).toLocaleDateString('es-AR', {
+    weekday:'long', day:'numeric', month:'long', year:'numeric'
+  });
+
+  el.innerHTML = `<div class="empty" style="padding:20px 0">🌐 Consultando datos horarios para ${dateLabel}…</div>`;
+
+  let hourly;
+  try { hourly = await fetchHourlyForDate(date); }
+  catch(e) {
+    el.innerHTML = `<div class="empty" style="color:var(--red)">No se pudo obtener datos horarios.<br><small>${e.message}</small></div>`;
+    return;
+  }
+
+  const hrs = hourly.hours;
+  const totalPrecip = hrs.reduce((s,h) => s + h.precip, 0);
+  const maxWind     = Math.max(...hrs.map(h => h.wind));
+  const maxWindH    = hrs.find(h => h.wind === maxWind);
+  const temps       = hrs.map(h => h.temp).filter(t => t !== null);
+  const minTemp     = temps.length ? Math.min(...temps) : null;
+  const maxTemp     = temps.length ? Math.max(...temps) : null;
+
+  // Dirección dominante del día
+  const DIR8 = ['N','NE','E','SE','S','SO','O','NO'];
+  const dirCount8 = Object.fromEntries(DIR8.map(d => [d, 0]));
+  hrs.forEach(h => {
+    if (h.windDir == null) return;
+    dirCount8[DIR8[Math.round(h.windDir/45)%8]]++;
+  });
+  const domDir = DIR8.reduce((a,b) => dirCount8[a]>=dirCount8[b]?a:b);
+
+  // Incidencias en ese día
+  const dayIncs = incidents.filter(i => i.date?.slice(0,10) === date);
+
+  // Todas las horas completas para la tabla
+  const keyHours = hrs.filter(h => h.time.endsWith(':00'));
+
+  el.innerHTML = `
+    <div class="wx-day-header">
+      <button class="wx-day-back" onclick="clearDayDetail()">← Volver</button>
+      <div>
+        <div class="wx-day-title">${dateLabel.charAt(0).toUpperCase()+dateLabel.slice(1)}</div>
+        <div class="wx-day-subtitle">Aeroparque Internacional Jorge Newbery · AEP · ${date}</div>
+      </div>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">📈 Resumen del día</div>
+      <div class="wx-kpi-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#60a5fa">${totalPrecip.toFixed(1)}<span style="font-size:0.8rem"> mm</span></div>
+          <div class="wx-lbl">precipitación<br>total</div>
+        </div>
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#f59e0b">${maxWind.toFixed(0)}<span style="font-size:0.8rem"> km/h</span></div>
+          <div class="wx-lbl">viento máximo<br>${maxWindH ? '('+maxWindH.time+')' : ''}</div>
+        </div>
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:var(--accent)">${domDir}</div>
+          <div class="wx-lbl">dirección<br>predominante</div>
+        </div>
+        <div class="wx-kpi">
+          <div class="wx-val" style="color:#f87171">${minTemp!==null?minTemp.toFixed(0):'—'}°<span style="font-size:0.7rem;color:var(--text-muted)">/</span>${maxTemp!==null?maxTemp.toFixed(0):'—'}°</div>
+          <div class="wx-lbl">temp. mín/máx<br>(°C)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">📊 Evolución horaria</div>
+      <div style="position:relative;height:200px">
+        <canvas id="wx-chart-hourly"></canvas>
+      </div>
+      <p class="wx-note">Barras azules: precipitación (mm) · Línea naranja: viento (km/h) · Línea roja: temperatura (°C)</p>
+    </div>
+
+    <div class="wx-section">
+      <div class="wx-section-title">🕐 Detalle horario</div>
+      <div style="overflow-x:auto">
+        <table class="wx-hour-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>🌧 mm</th>
+              <th>💨 km/h</th>
+              <th>🧭 Dir.</th>
+              <th>🌡 °C</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${keyHours.map(h => {
+              const dirLbl = h.windDir!=null ? windDirLabel(h.windDir) : '—';
+              const dirDeg = h.windDir ?? 0;
+              const isRainy = h.precip > 0;
+              const isWindy = h.wind >= 25;
+              return `<tr class="${(isRainy||isWindy)?'wx-hour-highlight':''}">
+                <td style="font-weight:700;color:var(--text)">${h.time}</td>
+                <td style="color:${h.precip>0?'#60a5fa':'var(--text-muted)'}">${h.precip.toFixed(1)}</td>
+                <td style="color:${h.wind>=25?'#f59e0b':'var(--text-muted)'}">${h.wind.toFixed(0)}</td>
+                <td>
+                  <span class="wx-hour-arrow" style="transform:rotate(${dirDeg}deg);display:inline-block">↑</span>
+                  <span style="color:var(--accent);font-size:0.65rem">${dirLbl}</span>
+                </td>
+                <td style="color:#f87171">${h.temp!=null?h.temp.toFixed(1):'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    ${dayIncs.length ? `
+    <div class="wx-section">
+      <div class="wx-section-title">🚨 Incidencias registradas este día (${dayIncs.length})</div>
+      ${dayIncs.map(i => {
+        const w = wxLabel(totalPrecip, maxWind);
+        return `<div class="wx-inc-row">
+          <span class="wx-weather-badge" style="background:${w.color}22;color:${w.color};border:1px solid ${w.color}55;flex-shrink:0">
+            ${w.icon} ${totalPrecip.toFixed(1)}mm
+          </span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(i.desc)}</div>
+            <div style="color:var(--text-muted);font-size:0.67rem;margin-top:2px">
+              📍 ${escHtml(getSectorName(i.cell))} · ${escHtml(i.fuente||'—')}
+            </div>
+          </div>
+          <span class="badge ${i.status}" style="flex-shrink:0;font-size:0.6rem">${statusLabel(i.status)}</span>
+        </div>`;
+      }).join('')}
+    </div>` : `
+    <div class="wx-section">
+      <div class="empty" style="padding:10px 0;font-size:0.75rem">Sin incidencias registradas para este día.</div>
+    </div>`}
+
+    <p class="wx-note" style="padding-bottom:8px">Fuente: Open-Meteo · AEP (-34.5592, -58.4161) · Datos horarios</p>`;
+
+  // ── Gráfico horario ───────────────────────────────────────
+  const ctxH = document.getElementById('wx-chart-hourly')?.getContext('2d');
+  if (ctxH) {
+    const labels  = keyHours.map(h => h.time);
+    const precips = keyHours.map(h => +h.precip.toFixed(2));
+    const winds   = keyHours.map(h => +h.wind.toFixed(1));
+    const ttemps  = keyHours.map(h => h.temp!=null ? +h.temp.toFixed(1) : null);
+    wxChartHourly = new Chart(ctxH, {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar', label: 'Precipitación (mm)',
+            data: precips, backgroundColor: '#3b82f688',
+            borderColor: '#3b82f6', borderWidth: 1, borderRadius: 3,
+            yAxisID: 'yP', order: 2
+          },
+          {
+            type: 'line', label: 'Viento (km/h)',
+            data: winds, borderColor: '#f59e0b',
+            backgroundColor: 'transparent', borderWidth: 2,
+            pointRadius: 3, pointBackgroundColor: '#f59e0b',
+            tension: 0.35, yAxisID: 'yW', order: 1
+          },
+          {
+            type: 'line', label: 'Temperatura (°C)',
+            data: ttemps, borderColor: '#f87171',
+            backgroundColor: '#f8717118', borderWidth: 2,
+            pointRadius: 2, pointBackgroundColor: '#f87171',
+            tension: 0.4, fill: true, yAxisID: 'yT', order: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color:'#94a3b8', font:{size:10}, boxWidth:12, padding:10 } },
+          tooltip: {
+            backgroundColor:'#1e293b', borderColor:'#334155', borderWidth:1,
+            titleColor:'#e2e8f0', bodyColor:'#94a3b8'
+          }
+        },
+        scales: {
+          x: { ticks:{color:'#64748b',font:{size:9}}, grid:{color:'#1e293b'} },
+          yP: {
+            type:'linear', position:'left',
+            ticks:{color:'#60a5fa',font:{size:9}},
+            grid:{color:'#1e293b'},
+            title:{display:true,text:'mm',color:'#60a5fa',font:{size:9}}
+          },
+          yW: {
+            type:'linear', position:'right',
+            ticks:{color:'#f59e0b',font:{size:9}},
+            grid:{drawOnChartArea:false},
+            title:{display:true,text:'km/h',color:'#f59e0b',font:{size:9}}
+          },
+          yT: {
+            type:'linear', position:'right',
+            ticks:{color:'#f87171',font:{size:9}},
+            grid:{drawOnChartArea:false},
+            title:{display:true,text:'°C',color:'#f87171',font:{size:9}}
+          }
+        }
+      }
+    });
+  }
+}
+
 async function renderWeatherAnalysis() {
+  if (wxDayDate) { renderDayDetail(wxDayDate); return; }
   const el = document.getElementById('weather-analysis-content');
   if (!el) return;
   if (!incidents.length) {
@@ -2399,15 +2872,34 @@ async function renderWeatherAnalysis() {
   // Destruir gráficos previos
   if (wxChartTimeline) { wxChartTimeline.destroy(); wxChartTimeline = null; }
   if (wxChartDonut)    { wxChartDonut.destroy();    wxChartDonut    = null; }
+  if (wxChartHourly)   { wxChartHourly.destroy();   wxChartHourly   = null; }
+
+  // Filtrar incidencias por rango si está activo
+  const filteredIncs = incidents.filter(i => {
+    const d = i.date?.slice(0,10);
+    if (!d) return false;
+    if (wxFilterFrom && d < wxFilterFrom) return false;
+    if (wxFilterTo   && d > wxFilterTo)   return false;
+    return true;
+  });
+
+  if (!filteredIncs.length) {
+    el.innerHTML = '<div class="empty">Sin incidencias en el período seleccionado.</div>'; return;
+  }
+
+  // Mostrar tag de filtro activo
+  const filterTag = (wxFilterFrom || wxFilterTo)
+    ? `<div style="margin-bottom:10px"><span class="wx-filter-active-tag">📅 Período: ${wxFilterFrom||'inicio'} → ${wxFilterTo||'hoy'} · ${filteredIncs.length} incidencias</span></div>`
+    : '';
 
   let wx;
-  try { wx = await fetchWeatherForIncidents(); }
+  try { wx = await fetchWeatherForIncidents(filteredIncs); }
   catch(e) {
     el.innerHTML = `<div class="empty" style="color:var(--red)">No se pudo obtener el clima.<br><small>${e.message}</small></div>`; return;
   }
 
   // Cruzar incidencias con clima
-  const enriched = incidents
+  const enriched = filteredIncs
     .filter(i => i.date?.slice(0,10) <= wx.end)
     .map(i => {
       const d = i.date?.slice(0,10);
@@ -2536,7 +3028,28 @@ async function renderWeatherAnalysis() {
     </svg>`;
   }
 
-  el.innerHTML = `
+  // ── Chips de fechas con incidencias ─────────────────────────
+  const incidentDates = [...new Set(enriched.map(i => i._date).filter(Boolean))].sort();
+  const dateChipsHTML = `
+    <div class="wx-section">
+      <div class="wx-section-title">📅 Fechas con incidencias · tocá para ver el detalle del día</div>
+      <div class="wx-date-chips">
+        ${incidentDates.length ? incidentDates.map(date => {
+          const wxDay = wx.daily[date] || { precip:0, wind:0 };
+          const wl    = wxLabel(wxDay.precip, wxDay.wind);
+          const cnt   = enriched.filter(i => i._date === date).length;
+          const chipCls = wxDay.precip >= 0.5 ? 'wx-rain' : wxDay.wind >= 25 ? 'wx-wind' : 'wx-dry';
+          const [y,m,d2] = date.split('-');
+          const label = new Date(+y,+m-1,+d2).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'2-digit'});
+          return `<button class="wx-date-chip ${chipCls}" onclick="analyzeDay('${date}')"
+            title="${wl.label} · ${wxDay.precip.toFixed(1)} mm · ${wxDay.wind.toFixed(0)} km/h">
+            ${wl.icon} ${label} <span class="wx-chip-count">${cnt}</span>
+          </button>`;
+        }).join('') : '<span class="wx-no-dates">Sin fechas con datos disponibles.</span>'}
+      </div>
+    </div>`;
+
+  el.innerHTML = filterTag + dateChipsHTML + `
     <div class="wx-section">
       <div class="wx-section-title">🔍 Conclusión automática</div>
       <div style="font-size:0.75rem;line-height:1.6;padding:8px 10px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border)">${conclusion}</div>
@@ -2891,24 +3404,33 @@ function toggleUpdates(incId) {
 }
 
 async function submitUpdate(incId) {
-  const textarea = document.getElementById(`upd-text-${incId}`);
-  const statusSel = document.getElementById(`upd-status-${incId}`);
-  const btn = document.getElementById(`upd-btn-${incId}`);
-  const text = (textarea?.value || '').trim();
-  if (!text) { textarea?.focus(); return; }
+  const textarea   = document.getElementById(`upd-text-${incId}`);
+  const statusSel  = document.getElementById(`upd-status-${incId}`);
+  const btn        = document.getElementById(`upd-btn-${incId}`);
+  const fotoInput  = document.getElementById(`upd-foto-input-${incId}`);
+  const text       = (textarea?.value || '').trim();
+  const files      = fotoInput ? Array.from(fotoInput.files) : [];
+  if (!text && !files.length) { textarea?.focus(); return; }
 
-  const author = getUserName();
+  const author    = getUserName();
   const newStatus = statusSel?.value || '';
-  const entry = { author, text, date: new Date().toISOString() };
+  const entry     = { author, text, date: new Date().toISOString() };
   if (newStatus) entry.newStatus = newStatus;
 
-  btn.disabled = true; btn.textContent = 'Guardando…';
+  btn.disabled = true;
+  btn.textContent = files.length ? `⬆ Subiendo ${files.length} foto(s)…` : 'Guardando…';
   try {
+    if (files.length) {
+      entry.fotos = await Promise.all(files.map(f => uploadToCloudinary(f)));
+    }
     const updateData = { updates: firebase.firestore.FieldValue.arrayUnion(entry) };
     if (newStatus) updateData.status = newStatus;
     await db.collection(COL_INC).doc(incId).update(updateData);
     textarea.value = '';
     if (statusSel) statusSel.value = '';
+    if (fotoInput) { fotoInput.value = ''; }
+    const preview = document.getElementById(`upd-foto-preview-${incId}`);
+    if (preview) preview.innerHTML = '';
   } catch(e) {
     console.error(e);
     alert('Error al guardar la actualización.');
@@ -2932,13 +3454,19 @@ function renderUpdatesThread(inc) {
     const d = new Date(u.date);
     const dateStr = d.toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'2-digit'})
                   + ' ' + d.toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'});
+    const photos = (u.fotos && u.fotos.length)
+      ? `<div class="upd-entry-photos">${u.fotos.map(url =>
+          `<img class="photo-thumb" src="${url}" onclick="openLightbox('${url}')" title="Ver foto">`
+        ).join('')}</div>`
+      : '';
     return `<div class="upd-entry">
       <div class="upd-meta">
         <span class="upd-author">${escHtml(u.author)}</span>
         <span>${dateStr}</span>
         ${statusChange}
       </div>
-      <div class="upd-text">${escHtml(u.text)}</div>
+      ${u.text ? `<div class="upd-text">${escHtml(u.text)}</div>` : ''}
+      ${photos}
     </div>`;
   }).join('');
 
@@ -2952,8 +3480,13 @@ function renderUpdatesThread(inc) {
       <div class="upd-input-area">
         <textarea id="upd-text-${inc.id}" placeholder="Escribí una actualización, comentario o resolución…"
           onkeydown="if(event.ctrlKey&&event.key==='Enter')submitUpdate('${inc.id}')"></textarea>
+        <div class="upd-foto-preview" id="upd-foto-preview-${inc.id}"></div>
         <div class="upd-input-row">
           <input type="hidden" id="upd-status-${inc.id}" value="">
+          <input type="file" id="upd-foto-input-${inc.id}" accept="image/*" multiple style="display:none"
+            onchange="previewUpdPhotos('${inc.id}', this)">
+          <button class="upd-foto-btn" type="button"
+            onclick="document.getElementById('upd-foto-input-${inc.id}').click()">📎 Foto</button>
           <div class="upd-dd" id="upd-dd-${inc.id}">
             <div class="upd-dd-btn" onclick="toggleUpdDd('${inc.id}')">
               <span id="upd-dd-label-${inc.id}">— Sin cambio de estado —</span>
@@ -3004,6 +3537,29 @@ function openLightbox(url) {
 function closeLightbox() {
   document.getElementById('photo-lightbox').classList.remove('open');
   document.getElementById('photo-lightbox-img').src = '';
+}
+
+function previewUpdPhotos(incId, input) {
+  const preview = document.getElementById(`upd-foto-preview-${incId}`);
+  if (!preview || !input.files.length) return;
+  preview.innerHTML = '';
+  for (const file of input.files) {
+    const url = URL.createObjectURL(file);
+    const img = document.createElement('img');
+    img.src = url; img.className = 'upd-foto-mini';
+    img.onclick = () => openLightbox(url);
+    preview.appendChild(img);
+  }
+}
+
+function renderPhotoThumbs(inc, stopProp) {
+  const urls = inc.fotos?.length ? inc.fotos : (inc.fotoUrl ? [inc.fotoUrl] : []);
+  if (!urls.length) return '';
+  const sp = stopProp ? 'event.stopPropagation();' : '';
+  return urls.map(url =>
+    `<img class="photo-thumb" src="${url}" alt="foto"
+      onclick="${sp}openLightbox('${url}')" title="Ver foto completa">`
+  ).join('');
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 

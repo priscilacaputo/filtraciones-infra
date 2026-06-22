@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import fitz; print\\('fitz ok'\\)\")",
+      "Bash(python -c \"import pdfplumber; print\\('pdfplumber ok'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(ls \"C:\\\\Users\\\\aa2k8428\\\\OneDrive - caairports\\\\Escritorio\\\\Techos Infra\\\\\"*.png 2>/dev/null || dir \"C:/Users/aa2k8428/OneDrive - caairports/Escritorio/Techos Infra/\" /b 2>/dev/null | grep -i \"logo\\\\|png\\\\|jpg\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\aa2k8428\\\\OneDrive - caairports\\\\Escritorio\\\\Techos Infra\\\\\" | Where-Object { $_.Name -match \"\\\\.\\(png|jpg|jpeg|svg|webp\\)$\" } | Select-Object Name)"
+    ]
+  }
+}
